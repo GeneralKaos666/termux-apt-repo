@@ -1,15 +1,21 @@
-Package: flutter
-Version: 3.47.7-5
+Package: opencode2
+Version: 2.1.4-1
 Architecture: aarch64
-Maintainer: mumumusuc <mumumusuc@gmail.com>
-Pre-Depends: x11-repo
-Depends: git, which, gtk3, xorgproto, ninja, cmake, clang, pkg-config
-Homepage: https://www.github.com/flutter/flutter
-Description: Flutter makes it easy and fast to build beautiful apps for mobile and beyond
-Filename: dists/termux/main/binary-aarch64/flutter_3.47.7-5_aarch64.deb
-Size: 635042964
-MD5Sum: 48577bba548440f762d6efab50de2517
-SHA1: 7798d9b8e53b43453ef7ad5024faa0b9a89df30f
-SHA256: 3f62be6aad385092b3c4dd760080279c4b78ab292822c3fec8ba764eb88208a6
-SHA512: 41e4ec119bff80452dc03d7b6fee69d41bf8c7028f32bea2769c39d754f9338c328f24aa40ccc960e75bb83a5eac95832316780a9110c91b123151fcf5bf6510
+Maintainer: opencode-android <noreply@example.com>
+Installed-Size: 174111
+Depends: ripgrep, libc++
+Conflicts: opencode, opencode1
+Replaces: opencode, opencode1
+Section: utils
+Priority: optional
+Homepage: https://github.com/anomalyco/opencode
+Description: OpenCode AI coding assistant for Android/Termux
+ Pure Android/aarch64 build of upstream OpenCode, installs side by side
+ as opencode2 (never touches v1 opencode).
+Filename: dists/termux/main/binary-aarch64/opencode2_2.1.4-1_aarch64.deb
+Size: 47145712
+MD5Sum: bffcee954a77a0a330b5e9e331f8abdd
+SHA1: d4c82087fc884d4ee913531fdf2cdf8d32b6cafe
+SHA256: 300e05d08f3fd1e9c19e040f44be8790679343348ec1abf4cd66842cf00cfc59
+SHA512: 025602255497671fcdc851f27b573f8b5853cd7c16d99ccf6753f513467fd9821263a8c8790f15a01bed5739357456818b7b7a92a36826cefb38513a001ec84c
 

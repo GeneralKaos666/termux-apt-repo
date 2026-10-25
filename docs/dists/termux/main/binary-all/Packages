@@ -1,0 +1,108 @@
+Package: Termux-dm
+Version: 6-morano
+Architecture: all
+Maintainer: NeeXtra Team
+Depends: python, python-tkinter, python-pillow, tigervnc, tigervnc-viewer
+Description: The Termux Display Manager! the best dm for termux, also now rewriten some code so its better
+Filename: dists/termux/main/binary-all/TermuxDM-v6-LTS-Codenamed-Morano.deb
+Size: 8516
+MD5Sum: 73e362231ba8196a45a399624ccb0505
+SHA1: ad2494f20b3745b85cea248f5e1cf850803cd1e1
+SHA256: 9b7494a37d3e9ce2788c427a2a03b42b493ce88496e3ac02bb1e7bfaddf72f54
+SHA512: 34ad41588b34f45467ed8e92ac496bea399225d644f886e0cb819ed307824f1213e63c08561023490e0571e04598436758753997aa18ab1a43686038926c5bbc
+
+Package: termux-dm
+Version: 1.0
+Section: x11
+Priority: optional
+Architecture: all
+Depends: python, python-pillow, dbus, xdotool, nodejs-lts, imlib2
+Maintainer: u0_a424 <localhost>
+Description: Termux Display Manager (tdm) with Frutiger Aero modern interface and native animations.
+Filename: dists/termux/main/binary-all/termux-dm-1.0.deb
+Size: 3356
+MD5Sum: 42197900fa48d9964237bd2d9a747cf8
+SHA1: 67018f44cc09ea482ad415a4c77c4d20aafbc58d
+SHA256: a43db2a197fe0e9c76cd3f13dc1ebc2871725ab8ee2fcb0abad92e2b3dca2c52
+SHA512: cdbd6c4aea56c2de800efc2aded5843c1eb86a99b8ace36c49a87b9e916f04d7ae7dfab10099529e108923759ab15b503febee2d7df587cff2f75a7152eba77f
+
+Package: termux-dm
+Version: 1.0
+Section: x11
+Priority: optional
+Architecture: all
+Depends: python, python-pillow, dbus, xdotool, nodejs-lts, imlib2
+Maintainer: u0_a424 <localhost>
+Description: Termux Display Manager (tdm) with Frutiger Aero modern interface and native animations.
+Filename: dists/termux/main/binary-all/termux-dm-2.0.deb
+Size: 3768
+MD5Sum: 57dabc4f64db8dacc9e77d70a147c44a
+SHA1: 34acfec1c1ef156a1a4fe91e461679bec2c34667
+SHA256: b6a4278d7a00c285fc7664cdf60e9b8043249a536ba558eaa380b14e62895c0f
+SHA512: fdf0b1af8449f76d1356f09b16ca49fded5d9d970d2c321c543d6726357edceca44b646faaa6068666db67113786563830255067791695e79fe30a3ca23f18fb
+
+Package: tdm
+Version: 3.0
+Section: x11
+Priority: optional
+Architecture: all
+Depends: python3, python-tkinter, dbus, termux-x11
+Maintainer: termux <>
+Description: Termux Display Manager - Modern login interface for X11 sessions.
+ Optimized with smooth animations and light visual effects, running perfectly inside Termux.
+Filename: dists/termux/main/binary-all/termux-dm_3.0_all.deb
+Size: 3616
+MD5Sum: 79d92b9c376b6f293431d2d4b361816b
+SHA1: 76ed81370151278689ffaecee06aa513edb8f639
+SHA256: 1566b697d993b8c145653d09f22b7c3f881f7f26d4109125b9852caf69a176b3
+SHA512: f50a0fa4ba7720614781a06ed0e462445e6b78f128ffa966080839bd4c6efd3e53a9df06cbb2f4cd241a09ad0f3be42d6258cd73b8e3d4689b3e493f3fcecbf9
+
+Package: tdm
+Version: 3.3
+Section: x11
+Priority: optional
+Architecture: all
+Depends: python3, python-tkinter, dbus, termux-x11
+Maintainer: termux <>
+Description: Termux Display Manager - Modern login interface for X11 sessions.
+ Optimized with smooth animations and light visual effects, running perfectly inside Termux.
+ Creates config directory and caches UI session orders persistently in ~/.config/tdm-config/tdmc.json automatically.
+Filename: dists/termux/main/binary-all/termux-dm_3.3_all.deb
+Size: 3888
+MD5Sum: 756352b88e5aebeb789cbd419785718d
+SHA1: b1357417227c1b747aac8f19c2db702bf17afd15
+SHA256: 141556259cf7a5c65c2d5a73fd323ac40a5aff9363e95e038d03451b8c7c7312
+SHA512: 4c9b5434e49d1fbb4e5d6c6557771d842a371b20a6d454f98921a31d5dcf99bcd8146301b98ba137d7ff59d33328b7eaa653c5dd26d711d0ae777ca67fea5aa7
+
+Package: tdm
+Version: 3.4
+Section: x11
+Priority: optional
+Architecture: all
+Depends: python3, python-tkinter, dbus, termux-x11
+Maintainer: termux <>
+Description: Termux Display Manager - Modern login interface for X11 sessions.
+ Optimized lightweight ~30 FPS profile to run seamlessly on Android/Termux without performance stutter.
+ Persistent cache (~/.config/tdm-config/tdmc.json).
+Filename: dists/termux/main/binary-all/termux-dm_3.4_all.deb
+Size: 872
+MD5Sum: 31dfda9b6d051ab44a9cac89693c1d7d
+SHA1: 8c801c4f0d535eadb646e6f0b2dc431f2ed55001
+SHA256: 3121c90c0b8beb54dbacd7bd650684f126a7a0c75de9ffe4921485688e775515
+SHA512: 77486f01fed9e1f0837a4f3eac58a4e8db312e2c71e473a12b26817acf967f35ee4830403ad342708def32cb90b8b40f48a56190c0281ca26e3eb457367e5327
+
+Package: termux-dm
+Version: 5.0-final
+Section: x11
+Priority: optional
+Architecture: all
+Maintainer: @termux
+Description: TermuX11 Display Manager
+ The definitive, bulletproof display manager for Termux VNC/X11 sessions.
+Filename: dists/termux/main/binary-all/termux-dm_5.0-LTS-Support.deb
+Size: 5376
+MD5Sum: f4bf8379d02ff27d73f9966899d6c389
+SHA1: a0d99699d8db3a72496b3382d920f2ff6f18ff56
+SHA256: f4a3bfbebdfe31febcfee164b9544d39599645b31444e81ff0183690cc3f35fc
+SHA512: 5dc75e162e1c7418a2e88876809ed32a992d5271e512b51255527bd3c4a2b6430a8fa0d183b68731530cc103de51b5beda48a8a95e6165f79d7d8dcc33b1d5be
+
