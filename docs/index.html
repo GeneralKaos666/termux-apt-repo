@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>termux-apt-repo</title>
+<style>
+  body { font-family: system-ui, -apple-system, sans-serif; margin: 2rem auto; max-width: 52rem; padding: 0 1rem; line-height: 1.5; color: #1a1a1a; }
+  h1 { border-bottom: 1px solid #e0e0e0; padding-bottom: 0.5rem; }
+  h2 { margin-top: 2rem; }
+  pre { background: #f4f4f4; padding: 1rem; overflow-x: auto; border-radius: 6px; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.9em; }
+  table { border-collapse: collapse; }
+  th, td { border: 1px solid #ddd; padding: 0.5rem 0.75rem; text-align: left; }
+  th { background: #f7f7f7; }
+  .key { background: #f4f4f4; padding: 0.75rem; border-radius: 6px; font-family: ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<h1>termux-apt-repo</h1>
+<p>
+  An APT repository for Termux packages, published on GitHub Pages.
+  The signing key is <a href="key.gpg">key.gpg</a>.
+</p>
+
+<h2>Packages</h2>
+<table>
+  <thead><tr><th>Package</th><th>Description</th><th>Architectures</th></tr></thead>
+  <tbody>
+    <tr><td><code>opencode2</code></td><td>OpenCode CLI for Termux</td><td><code>aarch64</code></td></tr>
+    <tr><td><code>Termux-dm</code> / <code>termux-dm</code> / <code>tdm</code></td><td>Termux display manager</td><td><code>all</code></td></tr>
+  </tbody>
+</table>
+
+<h2>Quick start</h2>
+<pre><code># 1. trust the repository signing key
+mkdir -p "$PREFIX/etc/apt/keyrings"
+curl -fsSL https://generalkaos666.github.io/termux-apt-repo/key.gpg \
+     -o "$PREFIX/etc/apt/keyrings/termux-apt-repo.gpg"
+
+# 2. add the repository
+echo "deb [signed-by=$PREFIX/etc/apt/keyrings/termux-apt-repo.gpg] https://generalkaos666.github.io/termux-apt-repo termux main" \
+     > "$PREFIX/etc/apt/sources.list.d/termux-apt-repo.list"
+
+# 3. update and install
+apt update
+apt install opencode2 termux-dm</code></pre>
+
+<h2>Verify the key</h2>
+<pre class="key">fingerprint: 1DED 0840 4574 B867 B058  A7BB 476F C230 ECBB FDF0</pre>
+
+<p>
+  Source and maintenance instructions live in the
+  <a href="https://github.com/GeneralKaos666/termux-apt-repo">repository README</a>.
+</p>
+</body>
+</html>
