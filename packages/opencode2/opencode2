@@ -1,0 +1,25 @@
+#!/data/data/com.termux/files/usr/bin/sh
+# opencode2 - wrapper for OpenCode 2 CLI on Android/Termux
+set -eu
+SELF="$(readlink -f "$0" 2>/dev/null || echo "$0")"
+DIR="$(CDPATH= cd -- "$(dirname "$SELF")" && pwd)"
+export PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+# watcher.node (parcel android-arm64) needs Termux libc++_shared.so; the
+# official Bun android base has no RUNPATH to $PREFIX/lib.
+export LD_LIBRARY_PATH="${PREFIX}/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# Stale var from pre-watcher builds (v2 ignored it anyway); never force-disable.
+unset OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER || true
+# fff (native file finder) segfaults the server on some project content;
+# keep it off and use the ripgrep fallback (same UX, less RAM).
+export OPENCODE_DISABLE_FFF=1
+for candidate in \
+    "$DIR/../libexec/opencode2/opencode2.bin" \
+    "$PREFIX/libexec/opencode2/opencode2.bin" \
+    "$DIR/opencode2.bin"
+do
+    if [ -x "$candidate" ]; then
+        exec "$candidate" "$@"
+    fi
+done
+echo "opencode2: error: could not find opencode2.bin" >&2
+exit 127

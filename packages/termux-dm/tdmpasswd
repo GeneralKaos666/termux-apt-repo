@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+import os
+import sys
+import getpass
+import json
+
+CONFIG_DIR = os.path.expanduser("~/.config/tdm-config")
+PASSWD_FILE = os.path.join(CONFIG_DIR, "tdmrc")
+
+def main():
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+
+    config = {}
+    if os.path.exists(PASSWD_FILE):
+        try:
+            with open(PASSWD_FILE, 'r') as f:
+                config = json.load(f)
+        except:
+            pass
+
+    print("\033[1;36m┌─────────────────────────────────────┐")
+    print("│     TDM Password Manager v1.0       │")
+    print("├─────────────────────────────────────┤")
+
+    if "password" in config and config["password"]:
+        print("│  🔐 Password already set!           │")
+        print("├─────────────────────────────────────┤")
+        print("│  Options:                          │")
+        print("│  [1] Change password               │")
+        print("│  [2] Delete password               │")
+        print("│  [3] Exit                         │")
+        print("└─────────────────────────────────────┘")
+        choice = input("\nSelect option (1-3): ").strip()
+
+        if choice == "1":
+            change_password(config)
+        elif choice == "2":
+            delete_password(config)
+        else:
+            print("\033[1;33mExiting...\033[0m")
+            return
+    else:
+        print("│  🔑 No password set!                │")
+        print("├─────────────────────────────────────┤")
+        print("│  [1] Set new password              │")
+        print("│  [2] Exit                         │")
+        print("└─────────────────────────────────────┘")
+        choice = input("\nSelect option (1-2): ").strip()
+
+        if choice == "1":
+            set_password(config)
+        else:
+            print("\033[1;33mExiting...\033[0m")
+            return
+
+def set_password(config):
+    print("\n\033[1;36mSetting new password...\033[0m")
+    password1 = getpass.getpass("New password: ")
+    if len(password1) < 3:
+        print("\033[1;31m✗ Password must be at least 3 characters!\033[0m")
+        return
+
+    password2 = getpass.getpass("Confirm password: ")
+    if password1 != password2:
+        print("\033[1;31m✗ Passwords don't match!\033[0m")
+        return
+
+    config["password"] = password1
+    save_config(config)
+    print("\033[1;32m✓ Password set successfully!\033[0m")
+
+def change_password(config):
+    print("\n\033[1;36mChanging password...\033[0m")
+    old = getpass.getpass("Current password: ")
+    if old != config.get("password", ""):
+        print("\033[1;31m✗ Incorrect password!\033[0m")
+        return
+
+    password1 = getpass.getpass("New password: ")
+    if len(password1) < 3:
+        print("\033[1;31m✗ Password must be at least 3 characters!\033[0m")
+        return
+
+    password2 = getpass.getpass("Confirm password: ")
+    if password1 != password2:
+        print("\033[1;31m✗ Passwords don't match!\033[0m")
+        return
+
+    config["password"] = password1
+    save_config(config)
+    print("\033[1;32m✓ Password changed successfully!\033[0m")
+
+def delete_password(config):
+    print("\n\033[1;31mDeleting password...\033[0m")
+    confirm = input("Are you sure? (y/n): ").strip().lower()
+    if confirm != 'y':
+        print("\033[1;33mCancelled.\033[0m")
+        return
+
+    current = getpass.getpass("Enter your current password: ")
+    if current != config.get("password", ""):
+        print("\033[1;31m✗ Incorrect password! Operation canceled.\033[0m")
+        return
+
+    config["password"] = ""
+    save_config(config)
+    print("\033[1;32m✓ Password deleted!\033[0m")
+
+def save_config(config):
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(PASSWD_FILE, 'w') as f:
+        json.dump(config, f, indent=4)
+
+if __name__ == "__main__":
+    main()

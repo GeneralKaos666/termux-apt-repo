@@ -1,0 +1,782 @@
+#!/usr/bin/env python3
+# TDM - Termux Display Manager v6 "Murano"
+# LightDM-style interface (solid color, centered)
+
+import tkinter as tk
+from tkinter import ttk, messagebox
+import os
+import json
+import random
+import getpass
+import math
+import subprocess
+import sys
+import traceback
+from datetime import datetime
+from PIL import Image, ImageTk
+
+# --- Crash handler ---
+def crash_handler(exc_type, exc_value, exc_tb):
+    if "TclError" in str(exc_type) and "display" in str(exc_value):
+        print("\033[1;33m[!] Cannot connect to display. Make sure VNC is running.\033[0m")
+        print("\033[1;33m[!] Try: vncserver :1\033[0m")
+        sys.exit(1)
+    
+    error_msg = "TDM Crashed Unexpectedly\n\n"
+    error_msg += f"Error: {exc_type.__name__}: {exc_value}\n\n"
+    error_msg += "Traceback:\n" + "".join(traceback.format_tb(exc_tb))
+    
+    with open("/data/data/com.termux/files/home/.tdm-crash.log", "w") as f:
+        f.write(error_msg)
+    
+    print("\033[1;31m" + "="*60)
+    print("TDM CRASHED UNEXPECTEDLY")
+    print("="*60)
+    print(error_msg)
+    print("="*60)
+    print("\033[1;33mCrash log saved to: ~/.tdm-crash.log")
+    print("\033[0m")
+    sys.exit(1)
+
+sys.excepthook = crash_handler
+
+# --- Command line args ---
+if len(sys.argv) > 1:
+    arg = sys.argv[1].lower()
+    if arg in ["-v", "--v", "-ver", "--ver", "-info", "--info"]:
+        print("\033[1;36m┌─────────────────────────────────────┐")
+        print("│         TDM - Termux DM           │")
+        print("├─────────────────────────────────────┤")
+        print("│  \033[1;33mVersion:\033[0m TDM V6 \"Murano\"       │")
+        print("│  \033[1;33mAuthor:\033[0m  TDM Team              │")
+        print("│  \033[1;33mType:\033[0m    Display Manager       │")
+        print("│  \033[1;33mConfig:\033[0m ~/.config/tdm-config/ │")
+        print("└─────────────────────────────────────┘")
+        sys.exit(0)
+
+# --- Find active display ---
+def find_active_display():
+    if os.environ.get("DISPLAY"):
+        display = os.environ["DISPLAY"]
+        try:
+            import tkinter
+            test = tkinter.Tk()
+            test.withdraw()
+            test.destroy()
+            return display
+        except:
+            pass
+    
+    for d in [":1", ":0", ":2", ":3"]:
+        try:
+            os.environ["DISPLAY"] = d
+            import tkinter
+            test = tkinter.Tk()
+            test.withdraw()
+            test.destroy()
+            print(f"\033[1;32m[+] Found active display: {d}\033[0m")
+            return d
+        except:
+            continue
+    
+    print("\033[1;31m[!] No active display found!\033[0m")
+    print("\033[1;33m[!] Make sure VNC is running: vncserver :1\033[0m")
+    sys.exit(1)
+
+display = find_active_display()
+os.environ["DISPLAY"] = display
+
+# --- Configuration ---
+CONFIG_DIR = os.path.expanduser("~/.config/tdm-config")
+CONFIG_PATH = os.path.join(CONFIG_DIR, "tdmc.json")
+CUSTOM_SESSIONS_PATH = os.path.join(CONFIG_DIR, "custom_sessions.json")
+LOG_PATH = os.path.join(CONFIG_DIR, "session.log")
+RUN_SCRIPT_PATH = os.path.join(CONFIG_DIR, "run_session.sh")
+PASSWD_FILE = os.path.join(CONFIG_DIR, "tdmrc")
+XSESSIONS_DIR = "/data/data/com.termux/files/usr/share/xsessions"
+
+WAIT_TIMES = [60, 300, 600, 900, 1200, 1500]
+MAX_ATTEMPTS = len(WAIT_TIMES)
+
+class TermuxDM:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("tdm - Termux Display Manager")
+        self.root.overrideredirect(True)
+        
+        self.sw, self.sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
+        self.root.geometry(f"{self.sw}x{self.sh}+0+0")
+        
+        self.alpha = 0.0
+        self.root.attributes("-alpha", self.alpha)
+        
+        # --- WALLPAPER ---
+        self.bg_image = None
+        try:
+            self.load_random_wallpaper()
+        except:
+            pass
+        
+        # --- TOP PANEL ---
+        top_panel = tk.Frame(self.root, bg="#0a1628", height=50)
+        top_panel.place(x=0, y=0, width=self.sw, height=50)
+        
+        tk.Label(top_panel, text="TDM V6", font=("Segoe UI", 10, "bold"),
+                fg="#5ac8fa", bg="#0a1628").pack(side="left", padx=20, pady=10)
+        
+        self.clock_label = tk.Label(top_panel, font=("Segoe UI", 12), 
+                                    fg="#8a9ba8", bg="#0a1628")
+        self.clock_label.pack(side="right", padx=20, pady=10)
+        self.update_clock()
+        
+        date_label = tk.Label(top_panel, 
+                              text=datetime.now().strftime("%a %b %d"),
+                              font=("Segoe UI", 9), fg="#6a7a8a", bg="#0a1628")
+        date_label.pack(side="right", padx=5, pady=10)
+        
+        # --- BOTTOM PANEL ---
+        bottom_panel = tk.Frame(self.root, bg="#0a1628", height=40)
+        bottom_panel.place(x=0, y=self.sh-40, width=self.sw, height=40)
+        tk.Label(bottom_panel, text="Termux Display Manager", 
+                font=("Segoe UI", 9), fg="#4a6a7a", bg="#0a1628").pack(pady=10)
+        
+        # --- LOGIN RECTANGLE (SOLID COLOR, CENTERED) ---
+        self.card_width, self.card_height = 500, 420
+        self.target_x = (self.sw // 2) - (self.card_width // 2)
+        self.target_y = (self.sh // 2) - (self.card_height // 2) + 10
+        self.current_y = self.target_y + 120
+        
+        # Main card with solid background (no gradient)
+        self.card = tk.Frame(self.root, bg="#1a2a3a", bd=0)
+        self.card.place(x=self.target_x, y=self.current_y, width=self.card_width, height=self.card_height)
+        
+        # Inner frame (for padding and visual depth)
+        inner_frame = tk.Frame(self.card, bg="#0a1a2a", bd=0)
+        inner_frame.place(x=10, y=10, width=self.card_width-20, height=self.card_height-20)
+        
+        # Content frame - perfectly centered
+        content_frame = tk.Frame(inner_frame, bg="#0a1a2a", bd=0)
+        # Use place with relative positioning to center
+        content_frame.place(relx=0.5, rely=0.5, anchor="center",
+                           width=self.card_width-80, height=self.card_height-80)
+        
+        self.glow_step = 0
+        self.chosen_command = None
+        self.password_attempts = 0
+        self.is_locked = False
+        self.remaining_time = 0
+        self.password_warning_shown = False
+        
+        # Detect sessions
+        self.all_sessions = self.detect_xsessions()
+        self.session_names = self.load_saved_order(list(self.all_sessions.keys()))
+        self.build_ui(content_frame)
+        
+        self.root.after(33, self.animate_entry)
+        # No glow animation needed (removed gradient)
+
+    def update_clock(self):
+        now = datetime.now().strftime("%I:%M %p")
+        self.clock_label.config(text=now)
+        self.root.after(10000, self.update_clock)
+
+    def load_random_wallpaper(self):
+        dirs = ["/data/data/com.termux/files/usr/share/wallpapers", 
+                "/data/data/com.termux/files/usr/share/backgrounds"]
+        images = []
+        for d in dirs:
+            if os.path.exists(d):
+                for root, _, files in os.walk(d):
+                    for f in files:
+                        if f.lower().endswith(('.png', '.jpg', '.jpeg')):
+                            images.append(os.path.join(root, f))
+        if not images:
+            return
+        try:
+            img = Image.open(random.choice(images))
+            img = img.resize((self.sw, self.sh), Image.Resampling.LANCZOS)
+            from PIL import ImageDraw
+            overlay = Image.new('RGBA', img.size, (0,0,0,0))
+            draw = ImageDraw.Draw(overlay)
+            draw.rectangle([(0,0), (self.sw,self.sh)], fill=(10, 14, 26, 80))
+            img = img.convert('RGBA')
+            img = Image.alpha_composite(img, overlay)
+            self.bg_image = ImageTk.PhotoImage(img)
+            self.canvas = tk.Canvas(self.root, width=self.sw, height=self.sh, highlightthickness=0)
+            self.canvas.place(x=0, y=0)
+            self.canvas.create_image(0, 0, image=self.bg_image, anchor="nw")
+        except:
+            pass
+
+    def change_wallpaper(self):
+        self.load_random_wallpaper()
+
+    # --- Password functions ---
+    def get_stored_password(self):
+        if os.path.exists(PASSWD_FILE):
+            try:
+                with open(PASSWD_FILE, 'r') as f:
+                    config = json.load(f)
+                    return config.get("password", "")
+            except:
+                pass
+        return None
+
+    def get_wait_time_str(self):
+        idx = min(self.password_attempts - 1, len(WAIT_TIMES) - 1)
+        wt = WAIT_TIMES[idx]
+        if wt >= 60:
+            m = wt // 60
+            return f"{m} minute{'s' if m > 1 else ''}"
+        return f"{wt} seconds"
+
+    def start_lock_timer(self):
+        self.is_locked = True
+        self.login_btn.config(state="disabled")
+        self.pass_entry.config(state="disabled")
+        
+        idx = min(self.password_attempts - 1, len(WAIT_TIMES) - 1)
+        self.remaining_time = WAIT_TIMES[idx]
+        
+        self.pass_status.config(text="[LOCKED] Wait " + self.get_wait_time_str(), fg="#ff4d4d")
+        self.pass_entry.config(fg="#ff4d4d")
+        self.update_lock_timer()
+
+    def update_lock_timer(self):
+        if self.remaining_time > 0:
+            m = self.remaining_time // 60
+            s = self.remaining_time % 60
+            t = f"{m}m {s}s" if m > 0 else f"{s}s"
+            self.pass_status.config(text=f"[LOCKED] {t} remaining", fg="#ff4d4d")
+            self.remaining_time -= 1
+            self.root.after(1000, self.update_lock_timer)
+        else:
+            self.is_locked = False
+            self.login_btn.config(state="normal")
+            self.pass_entry.config(state="normal")
+            self.pass_entry.delete(0, tk.END)
+            self.pass_status.config(text="Enter password", fg="#8a9ba8")
+            self.pass_entry.config(fg="#ffffff")
+            self.password_attempts = 0
+
+    def check_password_and_login(self):
+        if self.is_locked:
+            messagebox.showwarning("Locked!", f"Wait {self.get_wait_time_str()} before trying.")
+            return
+        
+        stored = self.get_stored_password()
+        
+        if not stored:
+            if not self.password_warning_shown:
+                result = messagebox.askyesno(
+                    "Security Warning",
+                    "[!] No password is set for TDM!\n\n"
+                    "This is a security risk.\n\n"
+                    "Continue anyway?\n\n"
+                    "(Set password with: tdmpasswd)"
+                )
+                self.password_warning_shown = True
+                if not result:
+                    return
+            
+            self.pass_status.config(text="[+] Logging in...", fg="#ffcc00")
+            self.login_btn.config(text="See you soon!", bg="#6a3a8a")
+            self.root.after(300, self.animate_exit)
+            return
+        
+        pwd = self.pass_entry.get()
+        
+        if pwd == stored:
+            self.password_attempts = 0
+            self.pass_status.config(text="[+] Correct!", fg="#5ac8fa")
+            self.login_btn.config(text="See you soon!", bg="#6a3a8a")
+            self.root.after(300, self.animate_exit)
+        else:
+            self.password_attempts += 1
+            self.pass_entry.config(fg="#ff4d4d")
+            self.pass_entry.delete(0, tk.END)
+            
+            if self.password_attempts >= MAX_ATTEMPTS:
+                self.pass_status.config(text="[X] System locked permanently!", fg="#ff0000")
+                self.login_btn.config(state="disabled")
+                self.pass_entry.config(state="disabled")
+                messagebox.showerror("Permanently Locked!", 
+                    "Too many failed attempts.\nSystem permanently locked.\nRestart TDM to try again.")
+                return
+            
+            self.pass_status.config(
+                text=f"[X] Wrong! Attempt {self.password_attempts}/{MAX_ATTEMPTS}. Locking for {self.get_wait_time_str()}", 
+                fg="#ff4d4d"
+            )
+            self.start_lock_timer()
+
+    def on_password_change(self, event):
+        if self.is_locked:
+            return
+            
+        pwd = self.pass_entry.get()
+        stored = self.get_stored_password()
+        
+        if not stored:
+            self.pass_status.config(text="[!] No password set", fg="#ffcc00")
+            return
+        
+        if len(pwd) > 0:
+            if pwd != stored:
+                self.pass_entry.config(show="•", fg="#ff4d4d")
+                self.pass_status.config(text="[X] Incorrect", fg="#ff4d4d")
+            else:
+                self.pass_entry.config(fg="#5ac8fa")
+                self.pass_status.config(text="[+] Correct! Click Log In", fg="#5ac8fa")
+        else:
+            self.pass_entry.config(fg="#ffffff")
+            self.pass_status.config(text="Enter password", fg="#8a9ba8")
+
+    def show_session_menu(self, event=None):
+        """Show session selection menu when gear icon is clicked"""
+        menu = tk.Menu(self.root, tearoff=0, bg="#0a1a2a", fg="#ffffff", 
+                       activebackground="#2a5a7a", activeforeground="#ffffff",
+                       font=("Segoe UI", 10))
+        
+        for name in self.session_names:
+            menu.add_command(label=name, command=lambda n=name: self.select_session(n))
+        
+        menu.add_separator()
+        menu.add_command(label="[+] Add Custom DE", command=self.open_custom_de_window)
+        menu.add_command(label="[X] Delete Custom DE", command=self.delete_selected_de)
+        
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        except:
+            pass
+
+    def select_session(self, name):
+        """Select a session from the menu"""
+        for i in range(self.listbox.size()):
+            if self.listbox.get(i).strip() == name:
+                self.listbox.select_clear(0, tk.END)
+                self.listbox.select_set(i)
+                self.listbox.see(i)
+                self.update_login_button()
+                break
+
+    def update_login_button(self, event=None):
+        try:
+            idx = self.listbox.curselection()[0]
+            de_name = self.listbox.get(idx).strip()
+            self.login_btn.config(text=f"Log In → {de_name}")
+        except:
+            self.login_btn.config(text="Log In")
+
+    # --- UI Building (centered) ---
+    def build_ui(self, parent):
+        username = getpass.getuser()
+        
+        # --- Avatar + Username row (centered) ---
+        top_row = tk.Frame(parent, bg="#0a1a2a")
+        top_row.pack(pady=(0, 10))
+        
+        avatar_canvas = tk.Canvas(top_row, width=80, height=80, bg="#0a1a2a", highlightthickness=0)
+        avatar_canvas.pack(side="left", padx=(0, 15))
+        avatar_canvas.create_oval(10, 10, 70, 70, fill="#1a3a5a", outline="#4a8aaa", width=2)
+        avatar_canvas.create_oval(30, 20, 50, 40, fill="#ffffff")
+        avatar_canvas.create_arc(20, 50, 60, 75, start=0, extent=180, fill="#ffffff")
+        
+        name_frame = tk.Frame(top_row, bg="#0a1a2a")
+        name_frame.pack(side="left")
+        
+        tk.Label(name_frame, text=username, font=("Segoe UI", 18, "bold"), 
+                fg="#ffffff", bg="#0a1a2a").pack(anchor="w")
+        
+        # Session selector
+        session_frame = tk.Frame(name_frame, bg="#0a1a2a")
+        session_frame.pack(anchor="w", pady=(2, 0))
+        
+        tk.Label(session_frame, text="Session:", font=("Segoe UI", 10), 
+                fg="#8a9ba8", bg="#0a1a2a").pack(side="left")
+        
+        self.session_name_label = tk.Label(session_frame, 
+                                          text=self.session_names[0] if self.session_names else "None",
+                                          font=("Segoe UI", 10, "bold"), 
+                                          fg="#5ac8fa", bg="#0a1a2a", cursor="arrow")
+        self.session_name_label.pack(side="left", padx=5)
+        self.session_name_label.bind("<Button-1>", self.show_session_menu)
+        
+        gear_label = tk.Label(session_frame, text="⚙️", font=("Segoe UI", 18, "bold"),
+                              fg="#ffffff", bg="#0a1a2a", cursor="arrow")
+        gear_label.pack(side="left", padx=5)
+        gear_label.bind("<Button-1>", self.show_session_menu)
+        
+        # --- Password row ---
+        pass_frame = tk.Frame(parent, bg="#0a1a2a")
+        pass_frame.pack(fill="x", pady=5)
+        
+        tk.Label(pass_frame, text="Password:", font=("Segoe UI", 10), 
+                fg="#8a9ba8", bg="#0a1a2a").pack(anchor="w")
+        
+        self.pass_entry = tk.Entry(pass_frame, font=("Segoe UI", 12), bg="#0a1a2a", 
+                                   fg="#ffffff", insertbackground="#5ac8fa",
+                                   bd=2, highlightbackground="#2a3a5a",
+                                   highlightcolor="#5ac8fa", show="•")
+        self.pass_entry.pack(fill="x", pady=(2, 0), ipady=4)
+        self.pass_entry.bind("<KeyRelease>", self.on_password_change)
+        self.pass_entry.bind("<Return>", lambda e: self.check_password_and_login())
+        
+        self.pass_status = tk.Label(pass_frame, text="Enter password", 
+                                   font=("Segoe UI", 9), fg="#8a9ba8", bg="#0a1a2a")
+        self.pass_status.pack(anchor="w", pady=(2, 5))
+        
+        if not self.get_stored_password():
+            self.pass_status.config(text="[!] No password set", fg="#ffcc00")
+            self.pass_entry.config(state="disabled")
+        
+        # Hidden listbox
+        self.listbox = tk.Listbox(parent, height=1, bg="#0a1a2a", fg="#0a1a2a",
+                                 selectbackground="#2a5a7a", selectforeground="#0a1a2a",
+                                 font=("Segoe UI", 1), bd=0, highlightthickness=0,
+                                 activestyle="none", relief="flat")
+        self.listbox.pack(fill="x")
+        
+        if self.session_names:
+            for name in self.session_names:
+                self.listbox.insert(tk.END, name)
+            self.listbox.select_set(0)
+            self.session_name_label.config(text=self.session_names[0])
+        else:
+            self.listbox.insert(tk.END, "None")
+            self.listbox.select_set(0)
+            self.session_name_label.config(text="None")
+        
+        self.listbox.bind('<<ListboxSelect>>', self.on_session_selected)
+        
+        # --- Login button ---
+        self.login_btn = tk.Button(parent, text="Log In", font=("Segoe UI", 13, "bold"),
+                                  bg="#1a6a8a", fg="#ffffff", activebackground="#2a7a9a",
+                                  activeforeground="#ffffff", bd=0, cursor="arrow",
+                                  command=self.check_password_and_login)
+        self.login_btn.pack(fill="x", pady=(8, 5), ipady=8)
+        
+        self.update_login_button()
+        
+        # --- Options row ---
+        opt_frame = tk.Frame(parent, bg="#0a1a2a")
+        opt_frame.pack(pady=5)
+        
+        btn_style = {"font": ("Segoe UI", 8), "bg": "#0a1a2a", "fg": "#5ac8fa", 
+                     "activebackground": "#1a2a3a", "activeforeground": "#5ac8fa",
+                     "bd": 1, "relief": "groove", "cursor": "arrow", "padx": 10, "pady": 3}
+        
+        
+        # Attempts info
+        tk.Label(parent, text=f"Max attempts: {MAX_ATTEMPTS}",
+                font=("Segoe UI", 7), fg="#4a6a7a", bg="#0a1a2a").pack(pady=(2, 0))
+
+    def on_session_selected(self, event):
+        try:
+            idx = self.listbox.curselection()[0]
+            name = self.listbox.get(idx)
+            self.session_name_label.config(text=name)
+            self.update_login_button()
+        except:
+            pass
+
+    # --- Custom DE functions ---
+    def open_custom_de_window(self):
+        if self.is_locked:
+            messagebox.showwarning("Locked!", f"Wait {self.get_wait_time_str()} before trying.")
+            return
+            
+        top = tk.Toplevel(self.root)
+        top.title("Add Custom Desktop")
+        top.transient(self.root)
+        top.overrideredirect(True)
+        tw, th = 480, 280
+        tx = (self.sw // 2) - (tw // 2)
+        ty = (self.sh // 2) - (th // 2)
+        top.geometry(f"{tw}x{th}+{tx}+{ty}")
+        top.focus_set()
+        top.grab_set()
+        top.configure(bg="#0a1a2a")
+        
+        container = tk.Frame(top, bg="#0a1a2a", bd=2, highlightbackground="#2a3a5a", highlightthickness=1)
+        container.pack(fill="both", expand=True, padx=15, pady=15)
+        
+        tk.Label(container, text="Add Desktop Environment", font=("Segoe UI", 14, "bold"), 
+                fg="#5ac8fa", bg="#0a1a2a").pack(pady=(10, 15))
+        
+        tk.Label(container, text="Name:", font=("Segoe UI", 9, "bold"), 
+                fg="#ffffff", bg="#0a1a2a").pack(anchor="w")
+        entry_name = tk.Entry(container, font=("Segoe UI", 10), bg="#0a1a2a", fg="#ffffff", 
+                             insertbackground="#5ac8fa", bd=1, highlightbackground="#2a3a5a")
+        entry_name.pack(fill="x", pady=(0, 10))
+        entry_name.focus_set()
+        
+        tk.Label(container, text="Command:", font=("Segoe UI", 9, "bold"), 
+                fg="#ffffff", bg="#0a1a2a").pack(anchor="w")
+        entry_cmd = tk.Entry(container, font=("Segoe UI", 10), bg="#0a1a2a", fg="#ffffff", 
+                            insertbackground="#5ac8fa", bd=1, highlightbackground="#2a3a5a")
+        entry_cmd.pack(fill="x", pady=(0, 15))
+        
+        def submit():
+            de_name = entry_name.get().strip()
+            de_cmd = entry_cmd.get().strip()
+            if not de_name or not de_cmd:
+                messagebox.showwarning("Hold up!", "Both fields are required.", parent=container)
+                return
+            if de_name in self.all_sessions:
+                messagebox.showwarning("Oops!", "That DE already exists.", parent=container)
+                return
+                
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+            custom_data = {}
+            if os.path.exists(CUSTOM_SESSIONS_PATH):
+                try:
+                    with open(CUSTOM_SESSIONS_PATH, "r") as f: custom_data = json.load(f)
+                except: pass
+            
+            custom_data[de_name] = de_cmd
+            with open(CUSTOM_SESSIONS_PATH, "w") as f:
+                json.dump(custom_data, f, indent=4)
+                
+            try:
+                with open(CONFIG_PATH, "r") as f: config_data = json.load(f)
+            except: config_data = {"session_order": []}
+                
+            if "session_order" not in config_data: config_data["session_order"] = []
+            config_data["session_order"].insert(0, de_name)
+            for s in self.all_sessions.keys():
+                if s not in config_data["session_order"]: config_data["session_order"].append(s)
+                    
+            with open(CONFIG_PATH, "w") as f: json.dump(config_data, f, indent=4)
+
+            self.all_sessions[de_name] = de_cmd
+            self.listbox.insert(0, de_name)
+            self.listbox.select_set(0)
+            self.session_name_label.config(text=de_name)
+            self.update_login_button()
+            messagebox.showinfo("Awesome!", f"'{de_name}' added!", parent=container)
+            top.destroy()
+            
+        def cancel(): top.destroy()
+
+        btn_frame = tk.Frame(container, bg="#0a1a2a")
+        btn_frame.pack(fill="x", pady=10)
+        tk.Button(btn_frame, text="Add", font=("Segoe UI", 10, "bold"),
+                 bg="#1a6a8a", fg="#ffffff", activebackground="#2a7a9a",
+                 bd=0, width=10, command=submit).pack(side="left", padx=5)
+        tk.Button(btn_frame, text="Cancel", font=("Segoe UI", 10, "bold"),
+                 bg="#4a1a1a", fg="#ffffff", activebackground="#5a2a2a",
+                 bd=0, width=10, command=cancel).pack(side="right", padx=5)
+
+    def delete_selected_de(self):
+        if self.is_locked:
+            messagebox.showwarning("Locked!", f"Wait {self.get_wait_time_str()} before trying.")
+            return
+            
+        try:
+            selected_idx = self.listbox.curselection()[0]
+            selected_name = self.listbox.get(selected_idx)
+        except IndexError:
+            messagebox.showwarning("Hey!", "Select a DE first.")
+            return
+
+        is_native = False
+        if os.path.exists(XSESSIONS_DIR):
+            for f in os.listdir(XSESSIONS_DIR):
+                if f.endswith(".desktop"):
+                    try:
+                        with open(os.path.join(XSESSIONS_DIR, f), "r") as file:
+                            for line in file:
+                                if line.startswith("Name=") and line.replace("Name=", "").strip() == selected_name:
+                                    is_native = True
+                                    break
+                    except: pass
+                if is_native: break
+
+        if is_native:
+            messagebox.showerror("Nope!", f"'{selected_name}' is a system DE.")
+            return
+
+        confirm = messagebox.askyesno("Sure?", f"Delete '{selected_name}'?")
+        if not confirm: return
+
+        if selected_name in self.all_sessions: del self.all_sessions[selected_name]
+
+        if os.path.exists(CUSTOM_SESSIONS_PATH):
+            try:
+                with open(CUSTOM_SESSIONS_PATH, "r") as f: custom_json = json.load(f)
+                if selected_name in custom_json: del custom_json[selected_name]
+                with open(CUSTOM_SESSIONS_PATH, "w") as f: json.dump(custom_json, f, indent=4)
+            except: pass
+
+        data = {"session_order": []}
+        try:
+            if os.path.exists(CONFIG_PATH):
+                with open(CONFIG_PATH, "r") as f: data = json.load(f)
+        except: pass
+
+        if "session_order" in data and selected_name in data["session_order"]: data["session_order"].remove(selected_name)
+        try:
+            with open(CONFIG_PATH, "w") as f: json.dump(data, f, indent=4)
+        except: pass
+
+        try:
+            self.listbox.delete(selected_idx)
+            if self.listbox.size() > 0:
+                self.listbox.select_set(0)
+                self.session_name_label.config(text=self.listbox.get(0))
+            else:
+                self.session_name_label.config(text="None")
+            self.update_login_button()
+        except: pass
+
+    def save_current_order(self):
+        items = list(self.listbox.get(0, tk.END))
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        try:
+            with open(CONFIG_PATH, "w") as f: json.dump({"session_order": items}, f, indent=4)
+        except: pass
+
+    def load_saved_order(self, detected_list):
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        if not os.path.exists(CONFIG_PATH):
+            try:
+                with open(CONFIG_PATH, "w") as f: json.dump({"session_order": detected_list}, f, indent=4)
+            except: pass
+            return detected_list
+
+        try:
+            with open(CONFIG_PATH, "r") as f:
+                data = json.load(f)
+                saved_order = data.get("session_order", [])
+        except: 
+            return detected_list
+            
+        ordered_list = []
+        for item in saved_order:
+            if item in detected_list and item not in ordered_list:
+                ordered_list.append(item)
+        for item in detected_list:
+            if item not in ordered_list:
+                ordered_list.append(item)
+        return ordered_list
+
+    # --- Animations ---
+    def animate_entry(self):
+        moved = False
+        if self.current_y > self.target_y:
+            distance = self.current_y - self.target_y
+            self.current_y -= max(1, int(distance * 0.15))
+            self.card.place(x=self.target_x, y=self.current_y)
+            moved = True
+        if self.alpha < 1.0:
+            self.alpha += 0.06
+            self.root.attributes("-alpha", min(1.0, self.alpha))
+            moved = True
+        if moved: self.root.after(33, self.animate_entry)
+
+    def animate_exit(self):
+        self.fade_out_loop()
+
+    def fade_out_loop(self):
+        if self.alpha > 0.0:
+            self.alpha -= 0.12
+            self.root.attributes("-alpha", max(0.0, self.alpha))
+            self.current_y -= 10
+            self.card.place(x=self.target_x, y=self.current_y)
+            self.root.after(33, self.fade_out_loop)
+        else: 
+            self.launch_session()
+
+    # Removed animate_card_glow (no gradient)
+
+    # --- Session Detection ---
+    def detect_xsessions(self):
+        found = {}
+        
+        if os.path.exists(XSESSIONS_DIR):
+            for file in os.listdir(XSESSIONS_DIR):
+                if file.endswith(".desktop"):
+                    try:
+                        with open(os.path.join(XSESSIONS_DIR, file), "r") as f:
+                            name, exec_cmd = "", ""
+                            for line in f:
+                                if line.startswith("Name="): 
+                                    name = line.replace("Name=", "").strip()
+                                elif line.startswith("Exec="): 
+                                    exec_cmd = line.replace("Exec=", "").replace("%U", "").replace("%F", "").replace("%u", "").replace("%f", "").strip()
+                            if name and exec_cmd: 
+                                found[name] = exec_cmd
+                    except: pass
+        
+        if os.path.exists(CUSTOM_SESSIONS_PATH):
+            try:
+                with open(CUSTOM_SESSIONS_PATH, "r") as f:
+                    custom_sessions = json.load(f)
+                    for custom_name, custom_cmd in custom_sessions.items():
+                        found[custom_name] = custom_cmd
+            except: pass
+
+        if not found:
+            found["KDE Plasma (X11)"] = "startplasma-x11"
+            found["XFCE"] = "startxfce4"
+            found["MATE"] = "mate-session"
+            found["Openbox"] = "openbox-session"
+            found["LXQt (X11)"] = "startlxqt"
+            found["IceWM"] = "icewm"
+        
+        return found
+
+    # --- Launch Session ---
+    def launch_session(self):
+        try: 
+            selected_name = self.listbox.get(self.listbox.curselection()[0]).strip()
+        except: 
+            selected_name = list(self.all_sessions.keys())[0]
+            
+        exec_string = self.all_sessions.get(selected_name, 'startplasma-x11')
+        display_var = os.environ.get("DISPLAY", ":1")
+        
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(RUN_SCRIPT_PATH, "w") as f:
+            f.write("#!/bin/bash\n")
+            f.write(f"export DISPLAY={display_var}\n")
+            f.write(f"echo '--- TDM SESSION INITIALIZATION ---' > {LOG_PATH}\n")
+            f.write(f"echo 'Selected: {selected_name}' >> {LOG_PATH}\n")
+            f.write(f"echo 'Command: {exec_string}' >> {LOG_PATH}\n")
+            f.write("pkill -f kwin 2>/dev/null\n")
+            f.write("pkill -f plasmashell 2>/dev/null\n")
+            f.write("pkill -f xfce4-session 2>/dev/null\n")
+            f.write("pkill -f openbox 2>/dev/null\n")
+            f.write("pkill -f fluxbox 2>/dev/null\n")
+            f.write("pkill -f mate-session 2>/dev/null\n")
+            f.write("pkill -f icewm 2>/dev/null\n")
+            f.write(f"eval \"{exec_string}\" >> {LOG_PATH} 2>&1\n")
+            
+        os.chmod(RUN_SCRIPT_PATH, 0o755)
+        self.chosen_command = RUN_SCRIPT_PATH
+        
+        self.root.destroy()
+        self.root.quit()
+
+        print("\033[1;32mTDM has closed\033[0m")
+
+# --- Entry Point ---
+if __name__ == "__main__":
+    try:
+        root = tk.Tk()
+        app = TermuxDM(root)
+        root.mainloop()
+        
+        if hasattr(app, 'chosen_command') and app.chosen_command:
+            os.system("clear")
+            print("\033[1;36m[*] Starting your session...\033[0m")
+            print(f"\033[1;33m[*] Check {LOG_PATH} if something goes wrong.\033[0m")
+            os.system(app.chosen_command)
+        else:
+            print("\033[1;32mTDM has closed\033[0m")
+    except KeyboardInterrupt:
+        print("\n\033[1;33mTDM closed by user\033[0m")
+        sys.exit(0)
+    except Exception as e:
+        crash_handler(type(e), e, e.__traceback__)

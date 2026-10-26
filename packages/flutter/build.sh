@@ -8,12 +8,9 @@ TERMUX_PKG_SHA256=SKIP_CHECKSUM
 TERMUX_PKG_DEPENDS="git, which, gtk3, xorgproto, ninja, cmake, clang, pkg-config, openjdk-21, wget, curl, unzip, 7zip, binutils, tar, xz-utils"
 
 # This is an architecture-any stub: its postinst downloads the real
-# architecture-specific payload (`flutter_${TERMUX_PKG_VERSION}_aarch64.deb`)
-# from the flutter-for-termux releases on first install.
+# architecture-specific payload from the flutter-for-termux releases on first
+# install. postinst/postrm/preinst in this directory are picked up as the
+# package's debscripts automatically.
 termux_step_make_install() {
-	: # no payload installed at build time; everything happens in postinst
-}
-
-termux_step_create_debscripts() {
-	install -Dm755 "${TERMUX_PKG_BUILDER_DIR}/postinst" "${TERMUX_PKG_TMPDIR}/DEBIAN/postinst"
+	: # nothing is installed at build time
 }
