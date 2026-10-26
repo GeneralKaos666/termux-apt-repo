@@ -48,25 +48,47 @@ fingerprint: 1DED 0840 4574 B867 B058  A7BB 476F C230 ECBB FDF0
 | `debs/` | built `.deb` files used to build the repository (gitignored) |
 | `termux-apt-repo` | CLI script that renders the repository tree |
 
-## Building a package
+## Building a package (automatic)
 
-Packages are built by the `termux-packages` fork (the `Packages` workflow,
-on GitHub runners) from the recipe in that repo. This repository only hosts
-the resulting `.deb` files.
+Packages are built and published automatically by the
+`.github/workflows/sync.yml` workflow. Each package's recipe lives under
+`packages/<name>/` and is the authoritative source. The workflow watches one
+upstream repository per package; when a newer release/tag lands it bumps the
+recipe, rebuilds the `.deb` with the termux-packages harness
+(`ghcr.io/termux/package-builder`), re-signs, and pushes.
 
-The recipes under `packages/<name>/build.sh` here are reference copies of the
-ones in `termux-packages`; the authoritative build recipe lives there. To
-build `termux-settings`, commit its recipe to `termux-packages` and let CI
-build it, then download the `.deb` artifact for the architectures you serve.
+It runs on a schedule (hourly), on push to `packages/**` / `sync.json` /
+`scripts/`, and manually (the `Sync packages` workflow in the Actions tab).
 
-## Maintaining
+| Package | Upstream (source of "latest") | Detect via |
+|---------|-------------------------------|------------|
+| `flutter` | `GeneralKaos666/flutter-for-termux` | latest release (shim; pulls its payload) |
+| `opencode2` | `GeneralKaos666/opencode-android` | latest release |
+| `termux-dm` | `GeneralKaos666/termux-display-manager-repo` | latest `master` commit |
+| `termux-settings` | `GeneralKaos666/termux-settings` | latest tag |
 
-Download the built `.deb` for a package from the `termux-packages` CI run,
-drop it into `debs/`, rebuild the metadata, re-export the key, and push.
-GitHub Pages serves `docs/` from the `main` branch as the site root.
+## Required secrets
+
+Set these in **Settings → Secrets and variables → Actions**:
+
+| Secret | Value |
+|--------|-------|
+| `GPG_PRIVATE_KEY` | `gpg --armor --export-secret-keys 476FC230ECBBFDF0` |
+| `GPG_PASSPHRASE` | the key's passphrase |
+
+The push-back to `main` uses the built-in `GITHUB_TOKEN` (no PAT required).
+
+## Manual rebuild
+
+Trigger the `Sync packages` workflow from the Actions tab (optionally pass a
+space-separated package list). To change the build harness, override the
+`termux_packages_ref` input (pinned to a known-good `termux/termux-packages`
+commit; bump it when recipes need a newer harness).
+
+To rebuild the apt metadata locally (e.g. after dropping a `.deb` in `debs/`):
 
 ```sh
-# place the CI-built .deb(s) into debs/ first, then:
+# place the built .deb(s) into debs/ first, then:
 ./termux-apt-repo debs docs stable main --sign
 gpg --export 476FC230ECBBFDF0 > docs/key.gpg
 git add docs/
