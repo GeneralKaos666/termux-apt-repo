@@ -3,3 +3,4 @@ debs-archive/
 repo/
 .planning/
 *.bak*
+.superpowers/
