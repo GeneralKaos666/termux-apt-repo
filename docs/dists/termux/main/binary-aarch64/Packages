@@ -19,3 +19,22 @@ SHA1: d4c82087fc884d4ee913531fdf2cdf8d32b6cafe
 SHA256: 300e05d08f3fd1e9c19e040f44be8790679343348ec1abf4cd66842cf00cfc59
 SHA512: 025602255497671fcdc851f27b573f8b5853cd7c16d99ccf6753f513467fd9821263a8c8790f15a01bed5739357456818b7b7a92a36826cefb38513a001ec84c
 
+Package: termux-settings
+Version: 1.0.0
+Architecture: aarch64
+Maintainer: Ronald Sloan (for termux) <xkiller1177@gmail.com>
+Installed-Size: 2204
+Depends: termux-tools
+Section: utils
+Priority: optional
+Homepage: https://github.com/GeneralKaos666/termux-settings
+Description: Keyboard-driven TUI to change Termux colors, app theme, and fonts
+ termux-settings is a keyboard-driven TUI for Termux that changes your
+ terminal colours, your Termux app theme, and your fonts.
+Filename: dists/termux/main/binary-aarch64/termux-settings_1.0.0_aarch64.deb
+Size: 893024
+MD5Sum: 0c2db970e670a966c80e010a8d3df4de
+SHA1: fe8b80ffcdd84e3393b7783a85a932e3882791af
+SHA256: 507a221710cfa2d1e6e9a78c3ab05cd3ee101bab946972cd2385a96204e3d853
+SHA512: 99014fe71a7d94489f493a40d75e310f13712fa767e639c3140102dfa788081a4846b29a50dbad1088271a3c9d6c49684cefa6389407b18e9f9a344206852b27
+
