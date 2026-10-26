@@ -1,0 +1,9 @@
+{
+  "pkg_format": "debian",
+  "packages": {
+    "name": "termux-apt-repo",
+    "distribution": "stable",
+    "component": "main",
+    "url": "https://generalkaos666.github.io/termux-apt-repo"
+  }
+}
