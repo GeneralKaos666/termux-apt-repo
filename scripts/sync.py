@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Detect and apply upstream package updates for the termux-apt-repo."""
 
+import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
+import tempfile
 import urllib.error
 import urllib.request
 
@@ -123,10 +126,11 @@ def fetch_latest(cfg, fetch=fetch_json):
     if detect == "master_head":
         commit = fetch("%s/repos/%s/commits/master" % (API, upstream))
         contents = fetch("%s/repos/%s/contents/" % (API, upstream))
-        new = _tdm_version(contents)
-        if new is None:
+        result = _tdm_version(contents)
+        if result is None:
             return None
-        return {"new": new, "sha": commit["sha"]}
+        new, deb_name = result
+        return {"new": new, "sha": commit["sha"], "deb_name": deb_name}
 
     raise ValueError("unknown detect %r" % detect)
 
@@ -139,7 +143,7 @@ def _tdm_version(contents):
     for deb in debs:
         m = re.search(r"-v(\d+)-LTS-Codenamed-([A-Za-z]+)\.deb$", deb)
         if m:
-            return "%s-%s" % (m.group(1), m.group(2).lower())
+            return "%s-%s" % (m.group(1), m.group(2).lower()), deb
     return None
 
 
@@ -191,3 +195,126 @@ def needs_update(name, latest, state):
     if name == "termux-dm":
         return latest.get("sha") != state.get(name, {}).get("last_sha")
     return _version_lt(published_version(name), latest["new"])
+
+
+def write_state(state, path="sync-state.json"):
+    with open(path, "w") as f:
+        json.dump(state, f, indent=2)
+        f.write("\n")
+
+
+def _set_in_file(path, key, value):
+    with open(path) as f:
+        content = f.read()
+
+    def repl(m):
+        old = m.group(2)
+        if old.startswith('"'):
+            return m.group(1) + '"' + value + '"'
+        return m.group(1) + value
+
+    new, n = re.subn(
+        r'(^%s=)("[^"]*"|[^\s"]*)' % re.escape(key),
+        repl,
+        content, count=1, flags=re.M)
+    if n == 0:
+        raise ValueError("field %r not found in %s" % (key, path))
+    with open(path, "w") as f:
+        f.write(new)
+
+
+def _replace_termux_download(build, new_url):
+    with open(build) as f:
+        content = f.read()
+    new, n = re.subn(
+        r'termux_download\s+"[^"]*"\s+opencode2\.zip',
+        'termux_download "%s" opencode2.zip' % new_url,
+        content, count=1)
+    if n == 0:
+        raise ValueError("termux_download opencode2.zip not found in %s" % build)
+    with open(build, "w") as f:
+        f.write(new)
+
+
+def _download_bytes(url):
+    req = urllib.request.Request(url, headers={"User-Agent": "termux-apt-repo-sync"})
+    with urllib.request.urlopen(req) as resp:
+        return resp.read()
+
+
+def _sha256_of_url(url, download=None):
+    if download is None:
+        download = _download_bytes
+    return hashlib.sha256(download(url)).hexdigest()
+
+
+def _revendor_tdm(pkg_dir, deb_path):
+    tmp = tempfile.mkdtemp()
+    try:
+        subprocess.run(["dpkg-deb", "-x", deb_path, tmp],
+                       check=True, capture_output=True)
+        for f in ("tdm", "tdmpasswd"):
+            src = os.path.join(tmp, "usr", "bin", f)
+            if not os.path.exists(src):
+                raise ValueError("deb missing usr/bin/%s" % f)
+            shutil.copy2(src, os.path.join(pkg_dir, f))
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def bump(name, latest, root=".", download=None):
+    pkg_dir = os.path.join(root, "packages", name)
+
+    if name == "flutter":
+        _set_in_file(os.path.join(pkg_dir, "build.sh"),
+                     "TERMUX_PKG_VERSION", latest["new"])
+        for f in ("postinst", "preinst", "postrm"):
+            _set_in_file(os.path.join(pkg_dir, f), "VERSION", latest["new"])
+        _set_in_file(os.path.join(pkg_dir, "postinst"),
+                     "RELEASE_BASE", latest["release_base"])
+
+    elif name == "opencode2":
+        build = os.path.join(pkg_dir, "build.sh")
+        _set_in_file(build, "TERMUX_PKG_VERSION", latest["new"])
+        _set_in_file(build, "TERMUX_PKG_SRCURL",
+                     "https://github.com/GeneralKaos666/opencode-android/"
+                     "archive/refs/tags/%s.tar.gz" % latest["tag"])
+        m = re.match(r"v(\d+\.\d+\.\d+)-android-r\d+", latest["tag"])
+        if not m:
+            raise ValueError("opencode2: unrecognized tag %r" % latest["tag"])
+        zip_url = ("https://github.com/GeneralKaos666/opencode-android/"
+                   "releases/download/%s/opencode2-%s-android-aarch64.zip"
+                   % (latest["tag"], m.group(1)))
+        _replace_termux_download(build, zip_url)
+
+    elif name == "termux-dm":
+        _set_in_file(os.path.join(pkg_dir, "build.sh"),
+                     "TERMUX_PKG_VERSION", latest["new"])
+        if download is None:
+            download = _download_bytes
+        deb_bytes = download(
+            "https://raw.githubusercontent.com/GeneralKaos666/"
+            "termux-display-manager-repo/master/%s" % latest["deb_name"])
+        with tempfile.NamedTemporaryFile(suffix=".deb", delete=False) as f:
+            f.write(deb_bytes)
+            deb_path = f.name
+        try:
+            _revendor_tdm(pkg_dir, deb_path)
+        finally:
+            os.unlink(deb_path)
+        state_path = os.path.join(root, "sync-state.json")
+        state = read_state(state_path)
+        state.setdefault("termux-dm", {})["last_sha"] = latest["sha"]
+        write_state(state, state_path)
+
+    elif name == "termux-settings":
+        build = os.path.join(pkg_dir, "build.sh")
+        src_url = ("https://github.com/GeneralKaos666/termux-settings/"
+                   "archive/refs/tags/%s.tar.gz" % latest["tag"])
+        sha = latest.get("sha256") or _sha256_of_url(src_url, download)
+        _set_in_file(build, "TERMUX_PKG_VERSION", latest["new"])
+        _set_in_file(build, "TERMUX_PKG_SRCURL", src_url)
+        _set_in_file(build, "TERMUX_PKG_SHA256", sha)
+
+    else:
+        raise ValueError("unknown package %r" % name)
