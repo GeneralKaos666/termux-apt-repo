@@ -37,9 +37,7 @@ fingerprint: 1DED 0840 4574 B867 B058  A7BB 476F C230 ECBB FDF0
 | Path | Purpose |
 |------|---------|
 | `repo.json` | repository manifest (name, distribution, component, url) |
-| `packages/<name>/build.sh` | Termux-style build recipe per package |
-| `build-package.sh` | builds a package recipe into a `.deb` (from `termux-packages`) |
-| `scripts/` | build helpers (source fetching, rust/cmake setup, massage, packaging) |
+| `packages/<name>/build.sh` | Termux-style build recipe per package (reference copy) |
 | `docs/` | GitHub Pages site root (served as the APT repo) |
 | `docs/dists/stable/InRelease` | signed Release file (APT entry point) |
 | `docs/dists/stable/main/binary-<arch>/Packages(.gz/.bz2)` | package metadata per architecture |
@@ -52,25 +50,23 @@ fingerprint: 1DED 0840 4574 B867 B058  A7BB 476F C230 ECBB FDF0
 
 ## Building a package
 
-Each package is a Termux-style recipe under `packages/<name>/build.sh`, built
-the same way `termux-packages` builds them:
+Packages are built by the `termux-packages` fork (the `Packages` workflow,
+on GitHub runners) from the recipe in that repo. This repository only hosts
+the resulting `.deb` files.
 
-```sh
-./build-package.sh termux-settings     # -> debs/termux-settings_<ver>_aarch64.deb
-```
-
-`build-package.sh` and `scripts/` are vendored from `termux-packages`, so a
-recipe uses the same `TERMUX_PKG_*` variables and `termux_step_*` functions
-(`termux_setup_rust`, `termux_step_make`, `termux_step_make_install`, …).
+The recipes under `packages/<name>/build.sh` here are reference copies of the
+ones in `termux-packages`; the authoritative build recipe lives there. To
+build `termux-settings`, commit its recipe to `termux-packages` and let CI
+build it, then download the `.deb` artifact for the architectures you serve.
 
 ## Maintaining
 
-Build the `.deb` for the package, drop it into `debs/`, rebuild the metadata,
-re-export the key, and push. GitHub Pages serves `docs/` from the `main`
-branch as the site root.
+Download the built `.deb` for a package from the `termux-packages` CI run,
+drop it into `debs/`, rebuild the metadata, re-export the key, and push.
+GitHub Pages serves `docs/` from the `main` branch as the site root.
 
 ```sh
-./build-package.sh termux-settings      # produces debs/termux-settings_<ver>_aarch64.deb
+# place the CI-built .deb(s) into debs/ first, then:
 ./termux-apt-repo debs docs stable main --sign
 gpg --export 476FC230ECBBFDF0 > docs/key.gpg
 git add docs/
