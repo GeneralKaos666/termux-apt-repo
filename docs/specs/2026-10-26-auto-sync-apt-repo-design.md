@@ -109,24 +109,35 @@ The sync logic, called per package (and a collect step at the end):
 |---|---|---|---|
 | `flutter` | `GeneralKaos666/flutter-for-termux` | latest release | `build.sh` `TERMUX_PKG_VERSION`; `postinst`/`preinst`/`postrm` `VERSION`, `RELEASE_BASE`, `DEB` |
 | `opencode2` | `GeneralKaos666/opencode-android` | latest release | `build.sh` `TERMUX_PKG_VERSION`, `TERMUX_PKG_SRCURL`, download URL in `termux_step_make_install` |
-| `termux-dm` | `GeneralKaos666/termux-display-manager-repo` | latest release/tag (TBD — see risks) | `build.sh` `TERMUX_PKG_VERSION`; re-vendor `tdm`/`tdmpasswd` |
+| `termux-dm` | `GeneralKaos666/termux-display-manager-repo` | latest commit on `master` (no releases/tags) | re-vendor `tdm`/`tdmpasswd` from newest `.deb` at repo root; derive `TERMUX_PKG_VERSION` from its filename |
 | `termux-settings` | `GeneralKaos666/termux-settings` | latest tag | `build.sh` `TERMUX_PKG_VERSION`, `TERMUX_PKG_SRCURL`, recomputed `TERMUX_PKG_SHA256` |
 
 Details that need care:
 
-- **flutter**: the shim version is `3.47.8-6` while the release tag is `3.47.8`.
-  The sync must read the latest release's tag *and* its `.deb` asset name to
-  derive the exact `X.Y.Z-N` deb version, then bake the tag into `RELEASE_BASE`
-  and the version into `VERSION`/`DEB`. It must not hardcode either.
+- **flutter**: confirmed the `-N` suffix lives in the release asset name (e.g.
+  release tag `3.47.8` ships `flutter_3.47.8-6_aarch64.deb`, plus `.sha256` and
+  `.size.txt` sidecars). The sync reads the latest release's `tag_name` (→
+  `RELEASE_BASE`) and the matching `flutter_*_aarch64.deb` asset name (→
+  `VERSION`/`DEB`). It must not hardcode either.
 - **opencode2**: release tag (`v2.1.4-android-r2`) differs from the package
-  version (`2.1.4-1`); the sync must map the release to the new version,
-  source tarball URL, and binary zip URL.
-- **termux-dm**: upstream ships prebuilt `.deb`s. The sync re-vendors the
-  `tdm`/`tdmpasswd` scripts from the new release and rebuilds, keeping the
-  existing recipe layout.
-- **termux-settings**: `TERMUX_PKG_SHA256` is a real checksum and must be
+  version (`2.1.4-1`); the sync must map the latest release to the new version,
+  source tarball URL, and binary zip URL (`opencode2-2.1.4-android-aarch64.zip`).
+  The release also ships a ready-made `opencode2_*.deb`; mirroring it directly
+  is a possible alternative, but the current recipe rebuilds from the zip +
+  vendored wrapper and the sync preserves that.
+- **termux-dm**: upstream has no releases/tags — only `master`, which hosts
+  prebuilt `.deb` files at the repo root (`TermuxDM-v6-LTS-Codenamed-Morano.deb`
+  and older). "Latest" is the latest commit on `master`: the sync compares the
+  upstream HEAD SHA against the last-synced SHA and, on change, re-vendors
+  `tdm`/`tdmpasswd` from the newest `.deb` at the repo root and rebuilds. The
+  version is parsed from that `.deb` filename (codenamed scheme → `6-morano`),
+  with a fallback to `master-<short-sha>` if the filename yields no clean
+  version.
+- **termux-settings**: tags are `v`-prefixed (`v1.1.1`), and the recipe version
+  drops the `v` (`1.1.1`). `TERMUX_PKG_SHA256` is a real checksum and must be
   recomputed from the new source tarball during the bump (never `SKIP_CHECKSUM`
-  silently).
+  silently). The release also ships a prebuilt `aarch64` binary, but the recipe
+  builds from source; the sync keeps building from source.
 
 ## 8. Error handling
 
@@ -159,17 +170,17 @@ Details that need care:
 4. Negative: force a version bump for one package and confirm only that
    package's job rebuilds while the others are skipped.
 
-## 11. Risks / open questions
+## 11. Risks
 
 - **Build harness version drift**: recipes are written against a specific
   termux-packages `build-package.sh` / `termux_step_*` API. The workflow must
   pin the harness (e.g. a known-good `termux/termux-packages` ref) to avoid
   breakage when upstream changes.
-- **flutter `-N` suffix**: the deb-version suffix (`-6`) is not derivable from
-  the tag alone; it comes from the release asset name. Confirm the asset naming
-  is stable.
-- **termux-dm re-vendoring**: the recipe's `TERMUX_PKG_SRCURL` points at
-  `master` (not a tag), while its version is `6-morano`. Confirm how "latest"
-  is detected for this repo (release, tag, or branch) and that a new release's
-  `.deb` exposes `tdm`/`tdmpasswd` at the same paths as the current vendored
-  copies.
+- **termux-dm version parsing** (residual): the `.deb` filenames at the repo
+  root follow an ad-hoc codenamed scheme (`TermuxDM-v6-LTS-Codenamed-Morano.deb`)
+  rather than a clean semantic version. The filename→version mapping in
+  `sync.json` may need a one-time adjustment if the author changes the naming
+  convention.
+- **flutter asset-naming stability** (residual): detection assumes the
+  `.deb` asset is always named `flutter_<tag>-<N>_aarch64.deb`. If that
+  convention changes, the matching pattern in `sync.json` must be updated.
