@@ -1,0 +1,8 @@
+{
+  "packages": [
+    { "name": "flutter",        "upstream": "GeneralKaos666/flutter-for-termux",          "detect": "latest_release" },
+    { "name": "opencode2",      "upstream": "GeneralKaos666/opencode-android",            "detect": "latest_release" },
+    { "name": "termux-dm",      "upstream": "GeneralKaos666/termux-display-manager-repo", "detect": "master_head" },
+    { "name": "termux-settings","upstream": "GeneralKaos666/termux-settings",             "detect": "latest_tag" }
+  ]
+}
