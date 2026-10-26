@@ -229,11 +229,46 @@ class TestBump(unittest.TestCase):
                 "deb_name": "TermuxDM-v6-LTS-Codenamed-Morano.deb",
             }, root=tmp, download=lambda url: deb)
             build = _read(os.path.join(tmp, "packages", "termux-dm", "build.sh"))
-            self.assertIn('TERMUX_PKG_VERSION="6-morano"', build)
+            self.assertIn('TERMUX_PKG_VERSION="6-morano+newsha"', build)
             self.assertEqual(_read(os.path.join(tmp, "packages", "termux-dm", "tdm")),
                              "#!/bin/sh\necho tdm\n")
             state = sync.read_state(os.path.join(tmp, "sync-state.json"))
             self.assertEqual(state["termux-dm"]["last_sha"], "newsha")
+
+    def test_termux_dm_new_codename_no_suffix(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _copy_pkg(tmp, "termux-dm")
+            deb = _make_tdm_deb()
+            sync.bump("termux-dm", {
+                "new": "7-aqua",
+                "sha": "abcdef1234567890",
+                "deb_name": "TermuxDM-v7-LTS-Codenamed-Aqua.deb",
+            }, root=tmp, download=lambda url: deb)
+            build = _read(os.path.join(tmp, "packages", "termux-dm", "build.sh"))
+            self.assertIn('TERMUX_PKG_VERSION="7-aqua"', build)
+
+
+class TestStageDebs(unittest.TestCase):
+    def _touch(self, path):
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            f.write("x")
+
+    def test_stage_keeps_newest_per_package(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pool = os.path.join(tmp, "docs", "pool", "main")
+            self._touch(os.path.join(pool, "f", "flutter",
+                                     "flutter_3.47.8-6_aarch64.deb"))
+            self._touch(os.path.join(pool, "o", "opencode2",
+                                     "opencode2_2.1.4-1_aarch64.deb"))
+            new_dir = os.path.join(tmp, "new")
+            self._touch(os.path.join(new_dir, "flutter_3.47.9-1_aarch64.deb"))
+            sync.stage_debs(new_dir, root=tmp)
+            debs = sorted(os.listdir(os.path.join(tmp, "debs")))
+            self.assertEqual(debs, [
+                "flutter_3.47.9-1_aarch64.deb",
+                "opencode2_2.1.4-1_aarch64.deb",
+            ])
 
 
 class TestDetect(unittest.TestCase):
@@ -283,6 +318,27 @@ class TestMain(unittest.TestCase):
              mock.patch("sync.needs_update", return_value=False):
             rc = sync.main(["bump", "flutter"])
         self.assertEqual(rc, 2)
+
+    def test_stage_debs_cli(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pool = os.path.join(tmp, "docs", "pool", "main")
+            os.makedirs(os.path.join(pool, "f", "flutter"))
+            with open(os.path.join(pool, "f", "flutter",
+                                   "flutter_3.47.8-6_aarch64.deb"), "w") as f:
+                f.write("x")
+            new_dir = os.path.join(tmp, "new")
+            os.makedirs(new_dir)
+            with open(os.path.join(new_dir, "flutter_3.47.9-1_aarch64.deb"), "w") as f:
+                f.write("y")
+            old = os.getcwd()
+            os.chdir(tmp)
+            try:
+                rc = sync.main(["stage-debs", "new"])
+            finally:
+                os.chdir(old)
+            self.assertEqual(rc, 0)
+            self.assertIn("flutter_3.47.9-1_aarch64.deb",
+                          os.listdir(os.path.join(tmp, "debs")))
 
 
 class TestFetchJsonRetry(unittest.TestCase):

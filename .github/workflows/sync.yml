@@ -1,0 +1,151 @@
+name: Sync packages
+
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "space-separated packages to rebuild (empty = auto-detect)"
+        required: false
+        default: ""
+      termux_packages_ref:
+        description: "termux/termux-packages ref to build against"
+        required: false
+        default: "58664109133413425125bbae99a4eaf7d94c61fa"
+  push:
+    paths:
+      - "packages/**"
+      - "sync.json"
+      - "sync-state.json"
+      - "scripts/sync.py"
+      - "scripts/build-package.sh"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.detect.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Detect changed packages
+        id: detect
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MANUAL: ${{ github.event.inputs.packages }}
+        run: |
+          if [ -n "$MANUAL" ]; then
+            changed=$(printf '%s' "$MANUAL" | jq -Rsc 'split(" ") | map(select(. != ""))')
+          else
+            changed=$(python3 scripts/sync.py detect-all | jq -c '[.[] | select(.changed) | .name]')
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: detect
+    if: needs.detect.outputs.changed != '[]'
+    runs-on: ubuntu-26.04
+    strategy:
+      matrix:
+        package: ${{ fromJson(needs.detect.outputs.changed) }}
+      fail-fast: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Bump recipe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/sync.py bump "${{ matrix.package }}"
+      - name: Checkout termux-packages harness
+        uses: actions/checkout@v4
+        with:
+          repository: termux/termux-packages
+          ref: ${{ inputs.termux_packages_ref || '58664109133413425125bbae99a4eaf7d94c61fa' }}
+          path: termux-packages
+          fetch-depth: 1
+      - name: Build package
+        env:
+          TERMUX_PACKAGES_DIR: ${{ github.workspace }}/termux-packages
+          TARGET_ARCH: aarch64
+        run: scripts/build-package.sh "${{ matrix.package }}"
+      - name: Package bumped recipe
+        run: |
+          mkdir -p dist
+          tar -czf "dist/${{ matrix.package }}.tgz" -C packages "${{ matrix.package }}"
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.package }}
+          path: debs/*.deb
+          if-no-files-found: error
+      - name: Upload bumped recipe
+        uses: actions/upload-artifact@v4
+        with:
+          name: recipe-${{ matrix.package }}
+          path: dist/${{ matrix.package }}.tgz
+
+  publish:
+    needs: build
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Download debs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: deb-*
+          path: new-debs
+          merge-multiple: true
+      - name: Download bumped recipes
+        uses: actions/download-artifact@v4
+        with:
+          pattern: recipe-*
+          path: recipes
+          merge-multiple: true
+      - name: Apply bumped recipes
+        run: |
+          for t in recipes/*.tgz; do
+            tar -xzf "$t" -C packages
+          done
+      - name: Stage debs (full set)
+        run: python3 scripts/sync.py stage-debs new-debs
+      - name: Import GPG key
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        run: |
+          GNUPGHOME="$RUNNER_TEMP/gnupg"
+          mkdir -p "$GNUPGHOME" && chmod 700 "$GNUPGHOME"
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
+      - name: Rebuild and sign
+        env:
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          ./termux-apt-repo debs docs stable main --sign
+          gpg --export 476FC230ECBBFDF0 > docs/key.gpg
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/ packages/ sync-state.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "chore: sync packages"
+          git push

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Detect and apply upstream package updates for the termux-apt-repo."""
 
+import glob
 import hashlib
 import json
 import os
@@ -158,6 +159,15 @@ def recipe_version(name):
     raise ValueError("no TERMUX_PKG_VERSION in %s" % path)
 
 
+def _version_in(build_path):
+    with open(build_path) as f:
+        for line in f:
+            m = re.match(r'TERMUX_PKG_VERSION="([^"]+)"', line)
+            if m:
+                return m.group(1)
+    return None
+
+
 def published_version(name):
     pkg_path = os.path.join("docs", "dists", "stable", "main",
                             "binary-aarch64", "Packages")
@@ -202,6 +212,40 @@ def write_state(state, path="sync-state.json"):
     with open(path, "w") as f:
         json.dump(state, f, indent=2)
         f.write("\n")
+
+
+def _version_sort_key(v):
+    return [int(x) if x.isdigit() else 0 for x in re.split(r"[^0-9]+", v)]
+
+
+def _dedupe_latest(debs_dir):
+    by_name = {}
+    for deb in glob.glob(os.path.join(debs_dir, "*.deb")):
+        base = os.path.basename(deb)
+        m = re.match(r"(.+?)_([^_]+)_([^_]+)\.deb$", base)
+        if not m:
+            continue
+        name, version = m.group(1), m.group(2)
+        by_name.setdefault(name, []).append((version, deb))
+    for entries in by_name.values():
+        entries.sort(key=lambda e: _version_sort_key(e[0]))
+        for _version, deb in entries[:-1]:
+            os.unlink(deb)
+
+
+def stage_debs(new_dir, root="."):
+    debs_dir = os.path.join(root, "debs")
+    shutil.rmtree(debs_dir, ignore_errors=True)
+    os.makedirs(debs_dir, exist_ok=True)
+
+    pool = os.path.join(root, "docs", "pool")
+    for deb in glob.glob(os.path.join(pool, "**", "*.deb"), recursive=True):
+        shutil.copy2(deb, debs_dir)
+
+    for deb in glob.glob(os.path.join(new_dir, "*.deb")):
+        shutil.copy2(deb, debs_dir)
+
+    _dedupe_latest(debs_dir)
 
 
 def _set_in_file(path, key, value):
@@ -289,8 +333,11 @@ def bump(name, latest, root=".", download=None):
         _replace_termux_download(build, zip_url)
 
     elif name == "termux-dm":
-        _set_in_file(os.path.join(pkg_dir, "build.sh"),
-                     "TERMUX_PKG_VERSION", latest["new"])
+        build = os.path.join(pkg_dir, "build.sh")
+        new = latest["new"]
+        if new == _version_in(build):
+            new = "%s+%s" % (new, latest["sha"][:7])
+        _set_in_file(build, "TERMUX_PKG_VERSION", new)
         if download is None:
             download = _download_bytes
         deb_bytes = download(
@@ -373,6 +420,9 @@ def main(argv=None):
     b = sub.add_parser("bump")
     b.add_argument("name")
 
+    sd = sub.add_parser("stage-debs")
+    sd.add_argument("new_dir")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "detect":
@@ -389,6 +439,10 @@ def main(argv=None):
         if not needs_update(args.name, latest, read_state()):
             return 2
         bump(args.name, latest)
+        return 0
+
+    if args.cmd == "stage-debs":
+        stage_debs(args.new_dir)
         return 0
 
     return 1

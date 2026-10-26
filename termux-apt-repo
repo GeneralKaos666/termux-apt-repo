@@ -8,6 +8,7 @@ import gzip
 import hashlib
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -277,10 +278,13 @@ def main():
 
     if args.sign:
         print('Signing with gpg...')
+        gpg_cmd = 'gpg --yes --pinentry-mode loopback --digest-algo SHA256'
+        passphrase = os.environ.get('GPG_PASSPHRASE')
+        if passphrase:
+            gpg_cmd += ' --passphrase ' + shlex.quote(passphrase)
+        gpg_cmd += ' --clearsign -o ' + distribution_path + '/InRelease ' + release_path
         subprocess.check_call(
-            ['gpg --yes --pinentry-mode loopback --digest-algo SHA256 '
-             '--clearsign -o ' + distribution_path + '/InRelease ' + release_path],
-            shell=True, universal_newlines=True)
+            [gpg_cmd], shell=True, universal_newlines=True)
 
     print('Done!')
     print('')
