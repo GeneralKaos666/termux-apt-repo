@@ -1,230 +1,298 @@
-#!/data/data/com.termux/files/usr/bin/python3.14
+#!/data/data/com.termux/files/usr/bin/python3
 
-import datetime, hashlib, os, re, shutil, subprocess, sys, glob, argparse
+import argparse
+import bz2
+import datetime
+import glob
+import gzip
+import hashlib
+import os
+import re
+import shutil
+import subprocess
+import sys
 
-COMPONENTS = []
-supported_arches = ['all', 'arm', 'i686', 'aarch64', 'x86_64']
-encountered_arches = set()
-hashes = ['md5', 'sha1', 'sha256', 'sha512']
+HASHES = ['md5', 'sha1', 'sha256', 'sha512']
+SUPPORTED_ARCHES = ['all', 'arm', 'i686', 'aarch64', 'x86_64']
+ORIGIN = 'termux-apt-repo'
+DESCRIPTION = 'termux-apt-repo (personal Termux package repository)'
 
-def get_package_name(filename):
-    # Expects the 'name_version_arch.deb' naming scheme.
-    return filename.split('_')[0]
 
 def run_shell_command(cmd):
     try:
-        return subprocess.check_output([cmd], shell=True,
-                                       universal_newlines=True,
-                                       stderr=subprocess.DEVNULL).strip()
+        return subprocess.check_output(
+            cmd, shell=True, universal_newlines=True,
+            stderr=subprocess.DEVNULL).strip()
     except subprocess.CalledProcessError:
         return None
 
+
 def control_file_contents(debfile):
-    file_list = run_shell_command("ar t {}".format(debfile))
+    file_list = run_shell_command('ar t {}'.format(debfile))
     if file_list is None:
         sys.exit("Error listing contents of '{}'".format(debfile))
-    
-    file_list = file_list.split("\n")
 
-    if "control.tar.gz" in file_list:
-        control_filename = "control.tar.gz"
-        tar_args = "-z"
-    elif "control.tar.xz" in file_list:
-        control_filename = "control.tar.xz"
-        tar_args = "-J"
+    file_list = file_list.split('\n')
+
+    if 'control.tar.gz' in file_list:
+        control_filename, tar_args = 'control.tar.gz', '-z'
+    elif 'control.tar.xz' in file_list:
+        control_filename, tar_args = 'control.tar.xz', '-J'
+    elif 'control.tar.zst' in file_list:
+        control_filename, tar_args = 'control.tar.zst', '--zstd'
     else:
         sys.exit("Failed to find control file in '{}'".format(debfile))
 
-    cmd_fmt = "ar p {} {} | tar -O {} -xf - ./control || ar p {} {} | tar -O {} -xf - control"
-    cmd = cmd_fmt.format(debfile, control_filename, tar_args,
-                         debfile, control_filename, tar_args)
+    cmd = ('ar p {} {} | tar -O {} -xf - ./control'
+           ' || ar p {} {} | tar -O {} -xf - control').format(
+        debfile, control_filename, tar_args,
+        debfile, control_filename, tar_args)
     contents = run_shell_command(cmd)
     if contents is None:
         sys.exit("Error extracting control file from '{}'".format(debfile))
-    
+
     return contents
 
+
 def list_package_files(debfile):
-    all_content = subprocess.check_output(
-        ["ar p " + debfile + " data.tar.xz | tar -tJ"],
-        shell=True,
-        universal_newlines=True,
-        stderr=subprocess.DEVNULL
-    )
-    return [files.strip("./") for files in all_content.splitlines() if not files[-1] == "/"]
+    file_list = run_shell_command('ar t {}'.format(debfile))
+    if file_list is None:
+        return []
 
-def add_deb(deb_to_add_path, component, use_hard_links):
-    deb_to_add_control_file = control_file_contents(deb_to_add_path)
-    deb_to_add_pkg_name = re.search('Package: (.*)', deb_to_add_control_file).group(1)
-    deb_to_add_pkg_version = re.search('Version: (.*)', deb_to_add_control_file).group(1)
-    deb_arch = re.search('Architecture: (.*)', deb_to_add_control_file).group(1)
-
-    if not deb_arch in supported_arches:
-        sys.exit('Unsupported arch "' + deb_arch + '" in ' + os.path.basename(deb_to_add_path))
-    encountered_arches.add(deb_arch)
-
-    package_name = get_package_name(os.path.basename(deb_to_add_path))
-    arch_dir_path = os.path.join(distribution_path, component, 'binary-' + deb_arch)
-
-    if not os.path.isdir(arch_dir_path):
-        os.makedirs(arch_dir_path)
-
-    # Add .deb file:
-    print('Adding deb file: ' + os.path.basename(deb_to_add_path) + '...')
-    dest_deb_dir_path = os.path.join(distribution_path, component, 'binary-' + deb_arch)
-    if not os.path.isdir(dest_deb_dir_path): os.makedirs(dest_deb_dir_path)
-    destination_deb_file = os.path.join(dest_deb_dir_path, os.path.basename(deb_to_add_path))
-
-    if use_hard_links:
-        os.link(deb_to_add_path, destination_deb_file)
+    if 'data.tar.xz' in file_list:
+        cmd = 'ar p {} data.tar.xz | tar -tJ'.format(debfile)
+    elif 'data.tar.gz' in file_list:
+        cmd = 'ar p {} data.tar.gz | tar -tz'.format(debfile)
+    elif 'data.tar.zst' in file_list:
+        cmd = 'ar p {} data.tar.zst | tar --zstd -t'.format(debfile)
     else:
-        shutil.copy2(deb_to_add_path, destination_deb_file)
+        return []
 
-    with open(os.path.join(distribution_path, component, 'Contents-' + deb_arch), 'a') as contents_file:
-        for f in list_package_files(destination_deb_file):
-            print("%-80s %s" % (f, deb_to_add_pkg_name), file=contents_file)
+    try:
+        listing = subprocess.check_output(
+            cmd, shell=True, universal_newlines=True, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        return []
 
-parser = argparse.ArgumentParser(description='Create a repository with deb files')
-parser.add_argument('input', metavar='input', type=str,
-                    help='folder where .deb files are located')
-parser.add_argument('output', metavar='output', type=str,
-                    help='folder with repository tree')
-parser.add_argument('distribution', metavar='dist', type=str, nargs='?', default='termux',
-                    help='name of distribution folder. deb files are put into output/dists/distribution/component/binary-$ARCH/')
-parser.add_argument('component', metavar='comp', type=str, nargs='?', default='extras',
-                    help='name of component folder. deb files are put into output/dists/distribution/component/binary-$ARCH/')
-parser.add_argument('--use-hard-links', default=False, action='store_true',
-                    help='use hard links instead of copying deb files. Will not work on an android device')
-parser.add_argument('-s', '--sign', action='store_true',
-                    help='sign repo with GPG key')
-parser.add_argument('--base-url', metavar='URL', type=str, default=None,
-                    help='write absolute URLs (URL/<file>.deb) into the Filename '
-                         'field of Packages instead of repo-relative paths; use '
-                         'when the .deb files are hosted somewhere else, e.g. a '
-                         'GitHub release download URL')
-parser.add_argument('--strip-debs', action='store_true',
-                    help='delete the copied .deb files from the output tree after '
-                         'metadata has been generated (metadata-only repository)')
+    return [f.strip('./') for f in listing.splitlines()
+            if f and not f.endswith('/')]
 
-args = parser.parse_args()
-input_path = args.input
-output_path = args.output
-DISTRIBUTION = args.distribution
-default_component = args.component
-use_hard_links = args.use_hard_links
-sign = args.sign
-distribution_path = os.path.join(output_path, 'dists', DISTRIBUTION)
 
-if not os.path.isdir(input_path):
-    sys.exit("'" + input_path + '" does not exist')
+def hash_file(path):
+    with open(path, 'rb') as f:
+        data = f.read()
+    return {h: getattr(hashlib, h)(data).hexdigest() for h in HASHES}
 
-debs_in_path = glob.glob(os.path.join(input_path, "*.deb"))
-debs_in_path += glob.glob(os.path.join(input_path, "*/*.deb"))
-if not debs_in_path:
-    sys.exit('No .deb file found in ' + input_path)
-else:
-    for deb_path in sorted(debs_in_path):
-        component = os.path.dirname(os.path.relpath(deb_path, input_path))
-        if not component:
-            component = default_component
-        if component not in COMPONENTS:
-            COMPONENTS.append(component)
-            if os.path.isdir(os.path.join(distribution_path, component)):
-                shutil.rmtree(os.path.join(distribution_path, component))
-            os.makedirs(os.path.join(distribution_path, component))
 
-        add_deb(deb_path, component, use_hard_links)
+def parse_deb(debfile):
+    control = control_file_contents(debfile)
+    name = re.search(r'^Package: (.*)$', control, re.M).group(1)
+    version = re.search(r'^Version: (.*)$', control, re.M).group(1)
+    arch = re.search(r'^Architecture: (.*)$', control, re.M).group(1)
+    return name, version, arch, control
 
-# See https://wiki.debian.org/RepositoryFormat#A.22Release.22_files for format:
-release_file_path = distribution_path + '/Release'
-release_file = open(release_file_path, 'w')
-print("Codename: termux", file=release_file)
-print("Version: 1", file=release_file)
-print("Architectures: " + ' '.join(encountered_arches), file=release_file)
-print("Description: " + DISTRIBUTION + " repository", file=release_file)
-print("Suite: " + DISTRIBUTION, file=release_file)
-print("Date: " + datetime.datetime.utcnow().strftime('%a, %d %b %Y %H:%M:%S UTC'), file=release_file)
 
-# Create Packages files:
-for component in COMPONENTS:
-    for arch_dir_path in glob.glob(os.path.join(distribution_path, component, 'binary-*')):
-        arch = os.path.basename(arch_dir_path).split('-')[1]
-        print('Creating package file for ' + component + " and " + arch + '...')
-        packages_file_path = arch_dir_path + '/Packages'
-        packagesxz_file_path = packages_file_path + '.xz'
-        binary_path = 'binary-' + arch
-        with open(packages_file_path, 'w') as packages_file:
-            for deb_to_read_path in sorted(glob.glob(os.path.join(arch_dir_path, "*.deb"))):
-                # Extract the control file from the .deb:
-                scanpackages_output = control_file_contents(deb_to_read_path)
-                package_name = re.search('Package: (.*)', scanpackages_output).group(1)
-                package_arch = re.search('Architecture: (.*)', scanpackages_output).group(1)
-                # Add these fields which dpkg-scanpackages would have done:
+def main():
+    parser = argparse.ArgumentParser(
+        description='Create a Termux-style apt repository from .deb files')
+    parser.add_argument('input', metavar='input', type=str,
+                        help='folder where .deb files are located')
+    parser.add_argument('output', metavar='output', type=str,
+                        help='folder with repository tree')
+    parser.add_argument('distribution', metavar='dist', type=str, nargs='?',
+                        default='stable',
+                        help='name of distribution folder (default: stable)')
+    parser.add_argument('component', metavar='comp', type=str, nargs='?',
+                        default='main',
+                        help='name of component folder (default: main)')
+    parser.add_argument('--use-hard-links', action='store_true',
+                        help='use hard links instead of copying deb files')
+    parser.add_argument('-s', '--sign', action='store_true',
+                        help='sign repo with GPG key')
+    parser.add_argument('--base-url', metavar='URL', type=str, default=None,
+                        help='write absolute URLs (URL/<file>.deb) into the '
+                             'Filename field instead of pool-relative paths; '
+                             'use when the .deb files are hosted somewhere else')
+    parser.add_argument('--strip-debs', action='store_true',
+                        help='delete the copied .deb files from pool/ after '
+                             'metadata has been generated (metadata-only repository)')
+
+    args = parser.parse_args()
+    input_path = args.input
+    output_path = args.output
+    DISTRIBUTION = args.distribution
+    COMPONENT = args.component
+
+    debs_in_path = sorted(set(
+        glob.glob(os.path.join(input_path, '*.deb')) +
+        glob.glob(os.path.join(input_path, '*', '*.deb'))))
+    if not debs_in_path:
+        sys.exit('No .deb file found in ' + input_path)
+
+    distribution_path = os.path.join(output_path, 'dists', DISTRIBUTION)
+    pool_dir = os.path.join(output_path, 'pool', COMPONENT)
+
+    # Clean the previous output for a deterministic rebuild.
+    if os.path.isdir(distribution_path):
+        shutil.rmtree(distribution_path)
+    if os.path.isdir(pool_dir):
+        shutil.rmtree(pool_dir)
+
+    packages = []       # name, version, arch, control, pool_filename, deb_path, files
+    real_arches = set()
+    seen = set()
+
+    for deb_path in debs_in_path:
+        name, version, arch, control = parse_deb(deb_path)
+        if arch not in SUPPORTED_ARCHES:
+            sys.exit('Unsupported arch "{}" in {}'.format(
+                arch, os.path.basename(deb_path)))
+        if (name, version, arch) in seen:
+            print('Warning: skipping duplicate package {}_{}_{} (source: {})'.format(
+                name, version, arch, os.path.basename(deb_path)))
+            continue
+        seen.add((name, version, arch))
+
+        filename = '{}_{}_{}.deb'.format(name, version, arch)
+        pool_relative = os.path.join('pool', COMPONENT, name[0], name, filename)
+        dest_path = os.path.join(output_path, pool_relative)
+        os.makedirs(os.path.dirname(dest_path), exist_ok=True)
+
+        print('Adding deb file: {} -> {}'.format(
+            os.path.basename(deb_path), pool_relative))
+        if args.use_hard_links:
+            os.link(deb_path, dest_path)
+        else:
+            shutil.copy2(deb_path, dest_path)
+
+        packages.append({
+            'name': name,
+            'version': version,
+            'arch': arch,
+            'control': control,
+            'pool_filename': pool_relative,
+            'deb_path': dest_path,
+            'files': list_package_files(dest_path),
+        })
+        if arch != 'all':
+            real_arches.add(arch)
+
+    if not real_arches:
+        sys.exit('No architecture-specific packages found; nothing to publish')
+
+    all_packages = [p for p in packages if p['arch'] == 'all']
+
+    # Packages, Contents and per-architecture Release files.
+    for arch in sorted(real_arches):
+        arch_dir = os.path.join(distribution_path, COMPONENT, 'binary-' + arch)
+        os.makedirs(arch_dir, exist_ok=True)
+
+        arch_packages = sorted(
+            [p for p in packages if p['arch'] == arch] + all_packages,
+            key=lambda p: p['name'])
+
+        packages_path = os.path.join(arch_dir, 'Packages')
+        with open(packages_path, 'w') as f:
+            for p in arch_packages:
                 if args.base_url:
-                    deb_filename = args.base_url.rstrip('/') + '/' + os.path.basename(deb_to_read_path)
+                    deb_filename = args.base_url.rstrip('/') + '/' + \
+                        os.path.basename(p['pool_filename'])
                 else:
-                    deb_filename = os.path.join('dists', DISTRIBUTION, component, binary_path, os.path.basename(deb_to_read_path))
-                scanpackages_output += '\nFilename: ' + deb_filename
-                scanpackages_output += '\nSize: ' + str(os.stat(deb_to_read_path).st_size)
-                for hash in hashes:
-                    if hash == "md5":
-                        hash_string = hash.upper()+'Sum'
-                    else:
-                        hash_string = hash.upper()
-                    scanpackages_output += '\n'+hash_string + ': ' + getattr(hashlib, hash)(open(deb_to_read_path, 'rb').read()).hexdigest()
-                print(scanpackages_output, file=packages_file)
-                print('', file=packages_file)
-        # Create Packages.xz
-        subprocess.check_call(['xz -9 --keep ' + packages_file_path], shell=True, universal_newlines=True)
-    for contents_file in glob.glob(os.path.join(distribution_path, component, 'Contents-*')):
-        subprocess.check_call(['xz -9 --keep ' + contents_file], shell=True, universal_newlines=True)
+                    deb_filename = p['pool_filename']
+                hashes = hash_file(p['deb_path'])
+                body = p['control'].rstrip('\n') + '\n'
+                body += 'Filename: ' + deb_filename + '\n'
+                body += 'Size: ' + str(os.stat(p['deb_path']).st_size) + '\n'
+                for h in HASHES:
+                    field = 'MD5Sum' if h == 'md5' else h.upper()
+                    body += field + ': ' + hashes[h] + '\n'
+                f.write(body + '\n')
 
-# Get components in output folder, we might have more folders than we are adding now
-COMPONENTS = [d for d in os.listdir(distribution_path) if os.path.isdir(os.path.join(distribution_path, d))]
-print("Components: " + ' '.join(COMPONENTS), file=release_file)
-for hash in hashes:
-    if hash == 'md5':
-        hash_string = hash.upper()+'Sum'
-    else:
-        hash_string = hash.upper()
-    print(hash_string + ':', file=release_file)
+        with open(packages_path, 'rb') as fin:
+            data = fin.read()
+        with gzip.open(packages_path + '.gz', 'wb') as fout:
+            fout.write(data)
+        with bz2.open(packages_path + '.bz2', 'wb') as fout:
+            fout.write(data)
 
-    for component in COMPONENTS:
-        for arch_dir_path in glob.glob(os.path.join(distribution_path, component, 'binary-*')):
-            # Write info about Packages and Packages.xz to Release file:
-            for f in ['Packages', 'Packages.xz']:
-                print(' '+' '.join([getattr(hashlib, hash)(open(os.path.join(arch_dir_path, f), 'rb').read()).hexdigest(),
-                                    str(os.stat(os.path.join(arch_dir_path, f)).st_size),
-                                    os.path.join(component, os.path.basename(arch_dir_path), f)])
-                      , file=release_file)
-        # Write info about Contents and Contents.gz to Release file:
-        for contents_file in glob.glob(os.path.join(distribution_path, component, 'Contents-*')):
-            print(' '+' '.join([getattr(hashlib, hash)(open(contents_file, 'rb').read()).hexdigest(),
-                                str(os.stat(contents_file).st_size), os.path.relpath(contents_file, distribution_path)])
-                  , file=release_file)
-release_file.close()
+        contents_path = os.path.join(
+            distribution_path, COMPONENT, 'Contents-' + arch)
+        contents_lines = sorted(
+            '%-80s %s' % (fpath, p['name'])
+            for p in arch_packages
+            for fpath in p['files'])
+        with open(contents_path, 'w') as f:
+            for line in contents_lines:
+                f.write(line + '\n')
+        with open(contents_path, 'rb') as fin:
+            data = fin.read()
+        with gzip.open(contents_path + '.gz', 'wb') as fout:
+            fout.write(data)
 
-if args.strip_debs:
-    for component in COMPONENTS:
-        for deb_file in glob.glob(os.path.join(distribution_path, component, 'binary-*', '*.deb')):
-            print('Stripping deb from output: ' + os.path.basename(deb_file))
-            os.remove(deb_file)
+        with open(os.path.join(arch_dir, 'Release'), 'w') as f:
+            f.write('Origin: {} {}\n'.format(ORIGIN, DISTRIBUTION))
+            f.write('Label: {} {}\n'.format(ORIGIN, DISTRIBUTION))
+            f.write('Archive: {}\n'.format(DISTRIBUTION))
+            f.write('Suite: {}\n'.format(DISTRIBUTION))
+            f.write('Codename: {}\n'.format(DISTRIBUTION))
+            f.write('Architecture: {}\n'.format(arch))
+            f.write('Component: {}\n'.format(COMPONENT))
 
-if sign:
-    print('Signing with gpg...')
-    subprocess.check_call(['gpg --yes --pinentry-mode loopback --digest-algo SHA256 --clearsign -o '
-        + distribution_path + '/InRelease ' + distribution_path + '/Release'],
-        shell=True,
-        universal_newlines=True)
+    # Top-level Release file.
+    release_entries = []
+    for arch in sorted(real_arches):
+        rel_dir = os.path.join(COMPONENT, 'binary-' + arch)
+        for fn in ['Packages', 'Packages.gz', 'Packages.bz2', 'Release']:
+            release_entries.append(os.path.join(rel_dir, fn))
+        release_entries.append(os.path.join(COMPONENT, 'Contents-' + arch))
+        release_entries.append(os.path.join(COMPONENT, 'Contents-' + arch + '.gz'))
+    release_entries.sort()
 
-print('Done!')
-print('')
-print('Make the ' + output_path + ' directory accessible at $REPO_URL')
-print('')
-print('Users can then access the repo by adding a file at')
-print('   $PREFIX/etc/apt/sources.list.d')
-print('containing:')
-for component in COMPONENTS:
-    print('   deb [trusted=yes] $REPO_URL '+DISTRIBUTION+' '+component)
-print('')
-print('[trusted=yes] is not needed if the repo has been signed with a gpg key')
+    release_path = os.path.join(distribution_path, 'Release')
+    with open(release_path, 'w') as f:
+        f.write('Origin: {} {}\n'.format(ORIGIN, DISTRIBUTION))
+        f.write('Label: {} {}\n'.format(ORIGIN, DISTRIBUTION))
+        f.write('Suite: {}\n'.format(DISTRIBUTION))
+        f.write('Codename: {}\n'.format(DISTRIBUTION))
+        f.write('Date: {}\n'.format(
+            datetime.datetime.now(datetime.timezone.utc).strftime(
+                '%a, %d %b %Y %H:%M:%S UTC')))
+        f.write('Architectures: {}\n'.format(' '.join(sorted(real_arches))))
+        f.write('Components: {}\n'.format(COMPONENT))
+        f.write('Description: {}\n'.format(DESCRIPTION))
+        for h in HASHES:
+            field = 'MD5Sum' if h == 'md5' else h.upper()
+            f.write(field + ':\n')
+            for rel in release_entries:
+                path = os.path.join(distribution_path, rel)
+                hashes = hash_file(path)
+                f.write(' {} {} {}\n'.format(
+                    hashes[h], os.stat(path).st_size, rel))
+
+    if args.strip_debs:
+        for p in packages:
+            if os.path.exists(p['deb_path']):
+                print('Stripping deb from output: ' + os.path.basename(p['deb_path']))
+                os.remove(p['deb_path'])
+
+    if args.sign:
+        print('Signing with gpg...')
+        subprocess.check_call(
+            ['gpg --yes --pinentry-mode loopback --digest-algo SHA256 '
+             '--clearsign -o ' + distribution_path + '/InRelease ' + release_path],
+            shell=True, universal_newlines=True)
+
+    print('Done!')
+    print('')
+    print('Make the ' + output_path + ' directory accessible at $REPO_URL')
+    print('')
+    print('Users can then access the repo by adding a file at')
+    print('   $PREFIX/etc/apt/sources.list.d')
+    print('containing:')
+    print('   deb [trusted=yes] $REPO_URL {} {}'.format(DISTRIBUTION, COMPONENT))
+    print('')
+    print('[trusted=yes] is not needed if the repo has been signed with a gpg key')
+
+
+if __name__ == '__main__':
+    main()

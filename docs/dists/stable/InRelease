@@ -1,0 +1,56 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Origin: termux-apt-repo stable
+Label: termux-apt-repo stable
+Suite: stable
+Codename: stable
+Date: Mon, 26 Oct 2026 02:11:16 UTC
+Architectures: aarch64
+Components: main
+Description: termux-apt-repo (personal Termux package repository)
+MD5Sum:
+ c6e1866a5f4cc30e787d01447a63ec07 643 main/Contents-aarch64
+ c65ccf291b9bc3d41e5668542e90ef4f 167 main/Contents-aarch64.gz
+ 62b1133d498a2f148fb4f19072170a73 2335 main/binary-aarch64/Packages
+ c07e9b298452d34846df997a886e323a 1310 main/binary-aarch64/Packages.bz2
+ 155909f0c66f688a8ccba3e890619d30 1253 main/binary-aarch64/Packages.gz
+ a696110b8e89906fe0997bd7d8497f85 146 main/binary-aarch64/Release
+SHA1:
+ de40648817e79d3e2d2ad6c1fa394bca6d5d9c60 643 main/Contents-aarch64
+ bb6d9c4b5bcb0371fe9415ba0002c9dd3d41b3ff 167 main/Contents-aarch64.gz
+ a16e258f65ac24b419ce253605d2d5683e7fb465 2335 main/binary-aarch64/Packages
+ ff734b81cfdc76bcef24be904ff643ff1544a2d9 1310 main/binary-aarch64/Packages.bz2
+ f69dc1d3105f595a74f61bdb749071da24631653 1253 main/binary-aarch64/Packages.gz
+ b65864b1c419d0dff4462728ee77e4d953d3ea43 146 main/binary-aarch64/Release
+SHA256:
+ 63ed8900bd58e01d28abbb00835330a0bdd0ab94b54cb6835326c94ecbc47229 643 main/Contents-aarch64
+ 33c07f05b4ba07f2f62f5ceb1f5d063d0bb95de7506dc6f002cba216854e5114 167 main/Contents-aarch64.gz
+ db47ceea358d6f08e1b4c44e8a83e8c352ca21def2fae8b0c1b61214174bf220 2335 main/binary-aarch64/Packages
+ fa37ae033444fc69b6c9d3076e75483049209934efb08792ba84da3e03161779 1310 main/binary-aarch64/Packages.bz2
+ 5ccdadcaee8565de0cd3e6752f35e8bf84118b947d84e97d8e9de70b94ec6307 1253 main/binary-aarch64/Packages.gz
+ 4aaf94939662b2986d8ba57574a4d5e9eb0ec68f1181324e9cb6767b399bde23 146 main/binary-aarch64/Release
+SHA512:
+ d095a77c9e490fac9235d31b29d8beaa215ba0c2446bdd5a20e92f8e8c30946299e83af5bf82313a5e0a87752c4a06eaffbc0d413239dc57691b98f52c90cbc7 643 main/Contents-aarch64
+ cedddcb3768a66027526caa5479cf806957250dafafb85a5c0e72caa5f9177d7a197158b850d001e9a8c4c778478e0310fa3e72ceec482ecc493c570c37670f1 167 main/Contents-aarch64.gz
+ ca390af552df6d74711c8010406b2cb050185e31da1827c5287dae04cbdc03e72fa996e46e548e8e18b5e7a874147f94c2e6a84a2fd0adf7e0b603a22021a9a1 2335 main/binary-aarch64/Packages
+ 93313b506423bcbaeb9cd2a76ab64adcbd3f3b88955046dc1aa08b79df0f936c6a29e8585570be3fa77637d7beb7707104b005a839fe67cae278bd884ee30b7b 1310 main/binary-aarch64/Packages.bz2
+ a4171560360f11c0c67b11feacfe459b08079ac1d4086a15bb58d0b9e37ecb1d932944c4e7d08602a959c5aa6fbfd58ad3e593407c54fb9349538b1be57a31fb 1253 main/binary-aarch64/Packages.gz
+ 5c8e91bd54eba55eb2523cba2c3332d623a8374e9af097af8ab59426ac34f5742b44062df22b97446f24d22b283aa2276964e1b186c988a0545d75d6da37398b 146 main/binary-aarch64/Release
+-----BEGIN PGP SIGNATURE-----
+
+iQJPBAEBCAA5FiEEHe0IQEV0uGewWKe7R2/CMOy7/fAFAmretsQbFIAAAAAABAAO
+bWFudTIsMi41KzEuMTIsMywyAAoJEEdvwjDsu/3wDqcQANSCmGlhWNm5pVSIyHtw
+RxDw/PEK9NBAD91Oc93qBieNE48epaI9Yz004jfLFPdlV9xMfh/nsLhyzhz5QbT9
+7o17yRenHaYfFbZeo6IC5gKy9zHgPMiE5MBDai+cE3+ATJec0MMZK4bSPaDtusv1
+pD2HhlP9az3OQBT6WK/kYNTRDcsFE+c/Oy9thy/E3lQz14DSnIS8hrykBehKtm6e
+kWVeAD3mGj/ELzhmmP0+EguvFlN8cwvks5D5kUv8gqv/jHE6SMweoHbkANuOKho2
+GO18Jwa8OutgiXsRBW9xpRKED7ivhb3dpty0XGws3+iozQSH8a3sEssR08Z741on
+aCImS4t+yRHZnd2XYxirFdLsauqWmNK0Q8rL4mlHESVUV7fZTI1MtCLca7Aih5Bb
+dopAVnTkM3QNppKppDj2GCSQtsCWEIwEJF3lo8rOMbLUTwo6gYCoxx6oxR9AwM8O
+vwDYebnFK74busYvNQ4BCfiQ9gvewvvI+MfrsKQc+m6yJSlBvlEzF+VwDVRbNl/+
+/dt+m01K1abHLHdfPmMaa6ltxwdruYiKDWb/mddFlggUlUfB1bH3YXRr54ArA8c9
+ub989pgKJPhRGWVF9zoj9Wt3CXEZP3h1Pp+ZgEYBOl3zX7VxlbkYT+xv6oOPMTch
+dlC9Vocfgb2rDtAn7UBMk6xd
+=62BI
+-----END PGP SIGNATURE-----

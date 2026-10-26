@@ -1,0 +1,7 @@
+Origin: termux-apt-repo stable
+Label: termux-apt-repo stable
+Archive: stable
+Suite: stable
+Codename: stable
+Architecture: aarch64
+Component: main

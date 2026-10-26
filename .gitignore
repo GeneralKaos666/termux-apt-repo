@@ -1,4 +1,5 @@
 debs/
+debs-archive/
 repo/
 .planning/
 *.bak*
