@@ -1,3 +1,18 @@
+Package: flutter
+Version: 3.47.8-6
+Architecture: all
+Maintainer: GeneralKaos666 <xkiller1177@gmail.com>
+Pre-Depends: x11-repo
+Depends: git, which, gtk3, xorgproto, ninja, cmake, clang, pkg-config, openjdk-21, wget, curl, unzip, 7zip, binutils, tar, xz-utils
+Homepage: https://www.github.com/flutter/flutter
+Description: Flutter makes it easy and fast to build beautiful apps for mobile and beyond
+Filename: pool/main/f/flutter/flutter_3.47.8-6_all.deb
+Size: 3786
+MD5Sum: 65d1a6c07c230ee8dfbdc752c88c6688
+SHA1: bf272cf66c3963384f40a29ac7c5a4453ca101af
+SHA256: 53f1b5e164e45b2998c83dcda278f4dda74c2e6300f97027f397b92057caa24c
+SHA512: de3ec34c43ad1a12c02dce072086399f2b8e625a36a9b7ea9f683c16375eece4dadc63f0750b10fec359f1e75fe9d3468a22ab0da0409a10f8d3e2ff7c2920cd
+
 Package: opencode2
 Version: 2.1.4-1
 Architecture: aarch64
