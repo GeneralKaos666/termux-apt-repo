@@ -7,6 +7,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import urllib.error
 import urllib.request
@@ -56,7 +57,7 @@ def _open_json(url, opener):
 
 def fetch_json(url, opener=None):
     if opener is None:
-        opener = urllib.request.build_opener()
+        opener = urllib.request.urlopen
     last = None
     for attempt in (1, 2):
         try:
@@ -318,3 +319,80 @@ def bump(name, latest, root=".", download=None):
 
     else:
         raise ValueError("unknown package %r" % name)
+
+
+def _config_for(name):
+    cfg = load_config()
+    for pkg in cfg["packages"]:
+        if pkg["name"] == name:
+            return pkg
+    raise ValueError("unknown package %r" % name)
+
+
+def detect(name):
+    cfg = _config_for(name)
+    latest = fetch_latest(cfg)
+    current = published_version(name)
+    state = read_state()
+    changed = needs_update(name, latest, state)
+    return {
+        "name": name,
+        "current": current,
+        "new": latest["new"] if latest else None,
+        "changed": changed,
+    }
+
+
+def detect_all():
+    cfg = load_config()
+    state = read_state()
+    out = []
+    for pkg in cfg["packages"]:
+        name = pkg["name"]
+        latest = fetch_latest(pkg)
+        current = published_version(name)
+        out.append({
+            "name": name,
+            "current": current,
+            "new": latest["new"] if latest else None,
+            "changed": needs_update(name, latest, state),
+        })
+    return out
+
+
+def main(argv=None):
+    import argparse
+    parser = argparse.ArgumentParser(prog="sync")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+
+    d = sub.add_parser("detect")
+    d.add_argument("name")
+
+    sub.add_parser("detect-all")
+
+    b = sub.add_parser("bump")
+    b.add_argument("name")
+
+    args = parser.parse_args(argv)
+
+    if args.cmd == "detect":
+        print(json.dumps(detect(args.name)))
+        return 0
+
+    if args.cmd == "detect-all":
+        print(json.dumps(detect_all()))
+        return 0
+
+    if args.cmd == "bump":
+        cfg = _config_for(args.name)
+        latest = fetch_latest(cfg)
+        if not needs_update(args.name, latest, read_state()):
+            return 2
+        bump(args.name, latest)
+        return 0
+
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

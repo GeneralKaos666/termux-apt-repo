@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -233,6 +234,55 @@ class TestBump(unittest.TestCase):
                              "#!/bin/sh\necho tdm\n")
             state = sync.read_state(os.path.join(tmp, "sync-state.json"))
             self.assertEqual(state["termux-dm"]["last_sha"], "newsha")
+
+
+class TestDetect(unittest.TestCase):
+    def test_detect_shape(self):
+        with mock.patch("sync.fetch_latest",
+                        return_value={"new": "9.9.9", "tag": "v9.9.9"}), \
+             mock.patch("sync.needs_update", return_value=True):
+            d = sync.detect("termux-settings")
+        self.assertEqual(d["name"], "termux-settings")
+        self.assertEqual(d["new"], "9.9.9")
+        self.assertTrue(d["changed"])
+
+    def test_detect_all(self):
+        cfg = {"packages": [
+            {"name": "a", "upstream": "x/y", "detect": "latest_tag"},
+            {"name": "b", "upstream": "x/y", "detect": "latest_tag"},
+        ]}
+        with mock.patch("sync.load_config", return_value=cfg), \
+             mock.patch("sync.fetch_latest",
+                        side_effect=[{"new": "1", "tag": "v1"}, None]), \
+             mock.patch("sync.published_version", return_value="0"), \
+             mock.patch("sync.needs_update", return_value=True):
+            out = sync.detect_all()
+        self.assertEqual(len(out), 2)
+        self.assertEqual(out[0]["name"], "a")
+        self.assertIsNone(out[1]["new"])
+
+
+class TestMain(unittest.TestCase):
+    def test_detect_prints_json(self):
+        buf = io.StringIO()
+        with mock.patch("sync.fetch_latest",
+                        return_value={"new": "9.9.9", "tag": "v9.9.9"}), \
+             mock.patch("sync.needs_update", return_value=True), \
+             mock.patch("sys.stdout", buf):
+            rc = sync.main(["detect", "termux-settings"])
+        self.assertEqual(rc, 0)
+        data = json.loads(buf.getvalue())
+        self.assertEqual(data["new"], "9.9.9")
+
+    def test_bump_no_change_exits_2(self):
+        with mock.patch("sync._config_for",
+                        return_value={"name": "flutter", "upstream": "x/y",
+                                      "detect": "latest_release"}), \
+             mock.patch("sync.fetch_latest",
+                        return_value={"new": "3.47.8-6", "release_base": "x"}), \
+             mock.patch("sync.needs_update", return_value=False):
+            rc = sync.main(["bump", "flutter"])
+        self.assertEqual(rc, 2)
 
 
 class TestFetchJsonRetry(unittest.TestCase):
