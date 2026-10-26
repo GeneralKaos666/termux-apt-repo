@@ -4,9 +4,9 @@ A standalone APT repository for my Termux packages, published on GitHub Pages.
 
 | Package | Description | Architectures |
 |---------|-------------|---------------|
-| `flutter` | Flutter SDK (stable) | `all` |
+| `flutter` | Flutter SDK (stable) | `aarch64` |
 | `opencode2` | OpenCode AI coding assistant for Android/Termux | `aarch64` |
-| `termux-dm` | Termux display manager | `all` |
+| `termux-dm` | Termux display manager | `aarch64` |
 | `termux-settings` | Keyboard-driven TUI to change Termux colors, app theme, and fonts | `aarch64` |
 
 ## Quick start (Termux)

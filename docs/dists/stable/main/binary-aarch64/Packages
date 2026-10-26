@@ -1,17 +1,17 @@
 Package: flutter
 Version: 3.47.8-6
-Architecture: all
+Architecture: aarch64
 Maintainer: GeneralKaos666 <xkiller1177@gmail.com>
 Pre-Depends: x11-repo
 Depends: git, which, gtk3, xorgproto, ninja, cmake, clang, pkg-config, openjdk-21, wget, curl, unzip, 7zip, binutils, tar, xz-utils
 Homepage: https://www.github.com/flutter/flutter
 Description: Flutter makes it easy and fast to build beautiful apps for mobile and beyond
-Filename: pool/main/f/flutter/flutter_3.47.8-6_all.deb
-Size: 3786
-MD5Sum: 65d1a6c07c230ee8dfbdc752c88c6688
-SHA1: bf272cf66c3963384f40a29ac7c5a4453ca101af
-SHA256: 53f1b5e164e45b2998c83dcda278f4dda74c2e6300f97027f397b92057caa24c
-SHA512: de3ec34c43ad1a12c02dce072086399f2b8e625a36a9b7ea9f683c16375eece4dadc63f0750b10fec359f1e75fe9d3468a22ab0da0409a10f8d3e2ff7c2920cd
+Filename: pool/main/f/flutter/flutter_3.47.8-6_aarch64.deb
+Size: 3916
+MD5Sum: ee4ff1265f00951c4be401859756016b
+SHA1: 37387b4d6fe9b4a318ea32905108e832c5cb0477
+SHA256: d3cc170da637f9247bc3cfc9cd8dc43400a463b571ac96f64484fb78efdbb84d
+SHA512: d7628b1072695c169e65373ffd53d018c8eacbacd0d5610cbd1882a746b31cbc0c3c1a0bb6955c59704379699def4c53bbf9444e8e9b48a06a9f9ebe77773ec8
 
 Package: opencode2
 Version: 2.1.4-1
@@ -36,16 +36,16 @@ SHA512: 025602255497671fcdc851f27b573f8b5853cd7c16d99ccf6753f513467fd9821263a8c8
 
 Package: termux-dm
 Version: 6-morano
-Architecture: all
+Architecture: aarch64
 Maintainer: NeeXtra Team
 Depends: python, python-tkinter, python-pillow, tigervnc, tigervnc-viewer
 Description: The Termux Display Manager! the best dm for termux, also now rewriten some code so its better
-Filename: pool/main/t/termux-dm/termux-dm_6-morano_all.deb
-Size: 8500
-MD5Sum: cd5c0686f0aa8e92ae2b36b75c002daa
-SHA1: b431dd90fa92f4e4af989c9f6c3a5b490c02ed33
-SHA256: 54f7b874e0e063f5f5d8f7fa9196db5178043a61a7b0e5873181c105d743839c
-SHA512: 9f13f29371fddc8b7d2c7d501dacfde7d24f6a90fb896f0a7522554b2c5e06a67419df08feef9ac044d0d68cb8d2c125f6a57989ca070c489c309a5bc3d47b52
+Filename: pool/main/t/termux-dm/termux-dm_6-morano_aarch64.deb
+Size: 8504
+MD5Sum: f69766b67a1d75c1830b5bf9cdf3eb5d
+SHA1: e3e00f946af4e2dd7f76419878282d3fd03cdf32
+SHA256: 647484602cd4ac3286074e7e02a40d39486ab69a93db65df26a1db53ccaa706f
+SHA512: a935b2045b63af941b5a32ba8cddad9b7dfafd974525ed779f5cecee8d161de35e5f09decfbf2a1bd011cb6e0ad9583397c96897018112a068e884049d891d7a
 
 Package: termux-settings
 Version: 1.1.0
