@@ -264,9 +264,9 @@ class TestStageDebs(unittest.TestCase):
                                      "flutter_3.47.8-6_aarch64.deb"))
             self._touch(os.path.join(pool, "o", "opencode2",
                                      "opencode2_2.1.4-1_aarch64.deb"))
-            new_dir = os.path.join(tmp, "new")
-            self._touch(os.path.join(new_dir, "flutter_3.47.9-1_aarch64.deb"))
-            sync.stage_debs(new_dir, root=tmp)
+            # freshly built .deb already staged in debs/
+            self._touch(os.path.join(tmp, "debs", "flutter_3.47.9-1_aarch64.deb"))
+            sync.stage_debs(root=tmp)
             debs = sorted(os.listdir(os.path.join(tmp, "debs")))
             self.assertEqual(debs, [
                 "flutter_3.47.9-1_aarch64.deb",
@@ -359,14 +359,13 @@ class TestMain(unittest.TestCase):
             with open(os.path.join(pool, "f", "flutter",
                                    "flutter_3.47.8-6_aarch64.deb"), "w") as f:
                 f.write("x")
-            new_dir = os.path.join(tmp, "new")
-            os.makedirs(new_dir)
-            with open(os.path.join(new_dir, "flutter_3.47.9-1_aarch64.deb"), "w") as f:
+            os.makedirs(os.path.join(tmp, "debs"))
+            with open(os.path.join(tmp, "debs", "flutter_3.47.9-1_aarch64.deb"), "w") as f:
                 f.write("y")
             old = os.getcwd()
             os.chdir(tmp)
             try:
-                rc = sync.main(["stage-debs", "new"])
+                rc = sync.main(["stage-debs"])
             finally:
                 os.chdir(old)
             self.assertEqual(rc, 0)

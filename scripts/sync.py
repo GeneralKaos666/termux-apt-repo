@@ -233,16 +233,14 @@ def _dedupe_latest(debs_dir):
             os.unlink(deb)
 
 
-def stage_debs(new_dir, root="."):
+def stage_debs(root="."):
+    """Merge existing pool .debs (unchanged packages) into debs/ (which already
+    holds the freshly-built .debs), deduped to the newest version per package."""
     debs_dir = os.path.join(root, "debs")
-    shutil.rmtree(debs_dir, ignore_errors=True)
     os.makedirs(debs_dir, exist_ok=True)
 
     pool = os.path.join(root, "docs", "pool")
     for deb in glob.glob(os.path.join(pool, "**", "*.deb"), recursive=True):
-        shutil.copy2(deb, debs_dir)
-
-    for deb in glob.glob(os.path.join(new_dir, "*.deb")):
         shutil.copy2(deb, debs_dir)
 
     _dedupe_latest(debs_dir)
@@ -434,7 +432,6 @@ def main(argv=None):
     b.add_argument("--force", action="store_true")
 
     sd = sub.add_parser("stage-debs")
-    sd.add_argument("new_dir")
 
     args = parser.parse_args(argv)
 
@@ -455,7 +452,7 @@ def main(argv=None):
         return 0
 
     if args.cmd == "stage-debs":
-        stage_debs(args.new_dir)
+        stage_debs()
         return 0
 
     return 1

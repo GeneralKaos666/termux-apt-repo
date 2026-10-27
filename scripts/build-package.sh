@@ -28,11 +28,23 @@ cp -R "$repo_root/packages/$pkg/." "$tp/packages/$pkg/"
   ./scripts/run-docker.sh ./build-package.sh -a "$arch" "$pkg"
 )
 
-# Collect the built .deb into debs/.
+# Collect the built .deb into debs/. Search recursively: the harness may place
+# the .deb under output/ directly, or in a nested directory for some packages.
 mkdir -p "$repo_root/debs"
-if ls "$tp/output/"*.deb >/dev/null 2>&1; then
-  cp "$tp/output/"*.deb "$repo_root/debs/"
-else
+
+mapfile -t found < <(find "$tp" -type f -name "${pkg}_*.deb" 2>/dev/null)
+if [ "${#found[@]}" -eq 0 ]; then
+  mapfile -t found < <(find "$tp" -type f -name "*.deb" 2>/dev/null)
+fi
+
+if [ "${#found[@]}" -eq 0 ]; then
   echo "build-package.sh: no .deb produced for $pkg" >&2
+  echo "build-package.sh: output dir contents:" >&2
+  find "$tp/output" -maxdepth 3 2>/dev/null | sed 's/^/    /' >&2 || true
   exit 1
 fi
+
+for d in "${found[@]}"; do
+  echo "build-package.sh: collected $d"
+  cp "$d" "$repo_root/debs/"
+done
