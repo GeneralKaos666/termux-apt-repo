@@ -25,7 +25,7 @@ cp -R "$repo_root/packages/$pkg/." "$tp/packages/$pkg/"
 # Build inside the official package-builder container.
 (
   cd "$tp"
-  ./scripts/run-docker.sh ./build-package.sh -a "$arch" "$pkg"
+  ./scripts/run-docker.sh ./build-package.sh -i -a "$arch" "$pkg"
 )
 
 # Collect the built .deb into debs/. Search recursively: the harness may place
