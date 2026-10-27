@@ -241,6 +241,11 @@ def stage_debs(root="."):
 
     pool = os.path.join(root, "docs", "pool")
     for deb in glob.glob(os.path.join(pool, "**", "*.deb"), recursive=True):
+        dest = os.path.join(debs_dir, os.path.basename(deb))
+        # Never overwrite a freshly-built .deb with a stale pool copy of the
+        # same name (rebuilding an unchanged version must still take effect).
+        if os.path.exists(dest):
+            continue
         shutil.copy2(deb, debs_dir)
 
     _dedupe_latest(debs_dir)
