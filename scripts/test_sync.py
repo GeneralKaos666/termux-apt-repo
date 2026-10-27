@@ -104,11 +104,11 @@ class TestFetchLatest(unittest.TestCase):
 class TestPublishedVersion(unittest.TestCase):
     def test_reads_from_packages_file(self):
         self.assertEqual(sync.published_version("flutter"), "3.47.8-6")
-        self.assertEqual(sync.published_version("termux-settings"), "1.1.0")
+        self.assertEqual(sync.published_version("termux-settings"), "1.1.1")
 
     def test_recipe_version(self):
         self.assertEqual(sync.recipe_version("flutter"), "3.47.8-6")
-        self.assertEqual(sync.recipe_version("opencode2"), "2.1.4-1")
+        self.assertEqual(sync.recipe_version("opencode2"), "2.1.4-2")
 
     def test_falls_back_to_recipe(self):
         with mock.patch("sync.os.path.exists", return_value=False):
@@ -117,7 +117,7 @@ class TestPublishedVersion(unittest.TestCase):
 
 class TestNeedsUpdate(unittest.TestCase):
     def test_newer_release(self):
-        self.assertTrue(sync.needs_update(
+        self.assertFalse(sync.needs_update(
             "termux-settings", {"new": "1.1.1", "tag": "v1.1.1"}))
 
     def test_unchanged(self):
@@ -125,9 +125,9 @@ class TestNeedsUpdate(unittest.TestCase):
             "flutter", {"new": "3.47.8-6", "release_base": "x"}))
 
     def test_tdm_epoch_newer(self):
-        # published "6-morano", latest "6-morano+<epoch>" -> newer
+        # published "6-morano+...", latest "6-morano+<epoch>" -> newer if epoch greater
         self.assertTrue(sync.needs_update(
-            "termux-dm", {"new": "6-morano+1729953672"}))
+            "termux-dm", {"new": "6-morano+9999999999-0"}))
         self.assertFalse(sync.needs_update(
             "termux-dm", {"new": "6-morano"}))
 
