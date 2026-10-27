@@ -23,9 +23,11 @@ mkdir -p "$tp/packages/$pkg"
 cp -R "$repo_root/packages/$pkg/." "$tp/packages/$pkg/"
 
 # Build inside the official package-builder container.
+# stdin is /dev/null so the container's `docker exec --interactive` cannot
+# drain the caller's stdin (the sync loop reads package names from stdin).
 (
   cd "$tp"
-  ./scripts/run-docker.sh ./build-package.sh -i -a "$arch" "$pkg"
+  ./scripts/run-docker.sh ./build-package.sh -i -a "$arch" "$pkg" < /dev/null
 )
 
 # Collect the built .deb into debs/. Search recursively: the harness may place
