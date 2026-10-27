@@ -10,9 +10,9 @@ TERMUX_PKG_BUILD_IN_SRC=true
 
 termux_step_make() {
 	termux_setup_rust
-	cargo build --release
+	cargo build --release --target "${CARGO_TARGET_NAME}"
 }
 
 termux_step_make_install() {
-	install -Dm755 target/release/termux-settings "${TERMUX_PREFIX}/bin/termux-settings"
+	install -Dm755 "target/${CARGO_TARGET_NAME}/release/termux-settings" "${TERMUX_PREFIX}/bin/termux-settings"
 }
