@@ -4,3 +4,5 @@ repo/
 .planning/
 *.bak*
 .superpowers/
+__pycache__/
+*.pyc
