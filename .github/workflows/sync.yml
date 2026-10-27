@@ -83,7 +83,7 @@ jobs:
         env:
           GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          GNUPGHOME="$RUNNER_TEMP/gnupg"
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"
           mkdir -p "$GNUPGHOME" && chmod 700 "$GNUPGHOME"
           printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
           echo "GNUPGHOME=$GNUPGHOME" >> "$GITHUB_ENV"
