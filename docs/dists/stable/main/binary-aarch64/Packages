@@ -14,25 +14,19 @@ SHA256: d3cc170da637f9247bc3cfc9cd8dc43400a463b571ac96f64484fb78efdbb84d
 SHA512: d7628b1072695c169e65373ffd53d018c8eacbacd0d5610cbd1882a746b31cbc0c3c1a0bb6955c59704379699def4c53bbf9444e8e9b48a06a9f9ebe77773ec8
 
 Package: opencode2
-Version: 2.1.4-1
 Architecture: aarch64
-Maintainer: opencode-android <noreply@example.com>
-Installed-Size: 174111
+Installed-Size: 224000
+Maintainer: Ronald Sloan (for termux) <xkiller1177@gmail.com>
+Version: 2.1.4-2-0
+Homepage: https://github.com/GeneralKaos666/opencode-android
 Depends: ripgrep, libc++
-Conflicts: opencode, opencode1
-Replaces: opencode, opencode1
-Section: utils
-Priority: optional
-Homepage: https://github.com/anomalyco/opencode
 Description: OpenCode AI coding assistant for Android/Termux
- Pure Android/aarch64 build of upstream OpenCode, installs side by side
- as opencode2 (never touches v1 opencode).
-Filename: pool/main/o/opencode2/opencode2_2.1.4-1_aarch64.deb
-Size: 47145712
-MD5Sum: bffcee954a77a0a330b5e9e331f8abdd
-SHA1: d4c82087fc884d4ee913531fdf2cdf8d32b6cafe
-SHA256: 300e05d08f3fd1e9c19e040f44be8790679343348ec1abf4cd66842cf00cfc59
-SHA512: 025602255497671fcdc851f27b573f8b5853cd7c16d99ccf6753f513467fd9821263a8c8790f15a01bed5739357456818b7b7a92a36826cefb38513a001ec84c
+Filename: pool/main/o/opencode2/opencode2_2.1.4-2-0_aarch64.deb
+Size: 60747780
+MD5Sum: b220949c215677194ad28b957dc89d67
+SHA1: 3782256ac88a9a238e75b27612d43676e28597f8
+SHA256: 71d0371197ee874e92896060e2388d90b53b81e8750cf4fa7c3cd0a35034dd21
+SHA512: 2a7a63ed2e00677a2c63b1b0181f24ce06ddd30be607f07f84ac433eede33a111ddce189c4a6c8d571c7ca0f0f703e787518cb9b46a1bcaad9bfa39f271cab0d
 
 Package: termux-dm
 Version: 6-morano
