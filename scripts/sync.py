@@ -104,7 +104,19 @@ def fetch_latest(cfg, fetch=fetch_json):
             m = re.match(r"v(\d+\.\d+\.\d+)-android-r(\d+)$", tag)
             if m:
                 return {"new": "%s-%s" % (m.group(1), m.group(2)), "tag": tag}
-            a = _find_asset(assets, r"opencode2_([0-9][0-9A-Za-z.+-]*)_aarch64\.deb$")
+            m = re.match(r"v(\d+\.\d+\.\d+)-android$", tag)
+            if m:
+                a = _find_asset(assets, r"opencode2[-_]([0-9][0-9A-Za-z.+-]*)-?\d*_aarch64\.(deb|pkg\.tar\.xz)$")
+                if a:
+                    return {"new": a.group(1), "tag": tag}
+                # look for release asset with -1 rev
+                a = _find_asset(assets, r"opencode2[-_]([0-9][0-9A-Za-z.+-]*)_1_aarch64\.(deb|pkg\.tar\.xz)$")
+                if a:
+                    return {"new": "%s-1" % a.group(1), "tag": tag}
+                return {"new": "%s-1" % m.group(1), "tag": tag}
+            a = _find_asset(assets, r"opencode2[_-]([0-9][0-9A-Za-z.+-]*)_aarch64\.deb$")
+            if not a:
+                a = _find_asset(assets, r"opencode2[-_]([0-9][0-9A-Za-z.+-]*)[-_]\d*_aarch64\.(deb|pkg\.tar\.xz)$")
             if not a:
                 raise ValueError(
                     "opencode2: unrecognized tag %r and no opencode2_*_aarch64.deb asset" % tag)
@@ -341,6 +353,8 @@ def bump(name, latest, root=".", download=None):
                      "https://github.com/GeneralKaos666/opencode-android/"
                      "archive/refs/tags/%s.tar.gz" % latest["tag"])
         m = re.match(r"v(\d+\.\d+\.\d+)-android-r\d+", latest["tag"])
+        if not m:
+            m = re.match(r"v(\d+\.\d+\.\d+)-android$", latest["tag"])
         if not m:
             raise ValueError("opencode2: unrecognized tag %r" % latest["tag"])
         zip_url = ("https://github.com/GeneralKaos666/opencode-android/"
