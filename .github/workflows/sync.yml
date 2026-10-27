@@ -107,4 +107,10 @@ jobs:
             exit 0
           fi
           git commit -m "chore: sync packages"
-          git push
+          for attempt in 1 2 3 4 5; do
+            git pull --rebase origin main && git push && exit 0
+            echo "push rejected, retrying (attempt $attempt)..."
+            sleep $((RANDOM % 10 + 1))
+          done
+          echo "::error::push failed after retries"
+          exit 1
