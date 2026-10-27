@@ -29,17 +29,19 @@ SHA256: 71d0371197ee874e92896060e2388d90b53b81e8750cf4fa7c3cd0a35034dd21
 SHA512: 2a7a63ed2e00677a2c63b1b0181f24ce06ddd30be607f07f84ac433eede33a111ddce189c4a6c8d571c7ca0f0f703e787518cb9b46a1bcaad9bfa39f271cab0d
 
 Package: termux-dm
-Version: 6-morano
 Architecture: aarch64
-Maintainer: NeeXtra Team
+Installed-Size: 80
+Maintainer: Ronald Sloan (for termux) <xkiller1177@gmail.com>
+Version: 6-morano+1784916667-0
+Homepage: https://github.com/GeneralKaos666/termux-display-manager-repo
 Depends: python, python-tkinter, python-pillow, tigervnc, tigervnc-viewer
-Description: The Termux Display Manager! the best dm for termux, also now rewriten some code so its better
-Filename: pool/main/t/termux-dm/termux-dm_6-morano_aarch64.deb
-Size: 8504
-MD5Sum: f69766b67a1d75c1830b5bf9cdf3eb5d
-SHA1: e3e00f946af4e2dd7f76419878282d3fd03cdf32
-SHA256: 647484602cd4ac3286074e7e02a40d39486ab69a93db65df26a1db53ccaa706f
-SHA512: a935b2045b63af941b5a32ba8cddad9b7dfafd974525ed779f5cecee8d161de35e5f09decfbf2a1bd011cb6e0ad9583397c96897018112a068e884049d891d7a
+Description: Termux display manager
+Filename: pool/main/t/termux-dm/termux-dm_6-morano+1784916667-0_aarch64.deb
+Size: 8604
+MD5Sum: 0437fba03dfd413ad9a220aff6446b67
+SHA1: 23b742a1878c5359d5ac0d377e4370824ea58681
+SHA256: 8f711799cb26313bb5a701436a6768c04df178ec6abf5fb23f3f944780073813
+SHA512: 8fab65e78f59f73a5b2b5811c6243120c7989fa995da04a98747a4a805fa762459ef022943be8244104fec9dea2ad55f59704ed3508d6ad57afc13acd5f8d581
 
 Package: termux-settings
 Version: 1.1.0
