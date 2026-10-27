@@ -32,6 +32,8 @@ jobs:
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
@@ -42,6 +44,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           MANUAL: ${{ github.event.inputs.packages }}
         run: |
+          set -euo pipefail
           if [ -n "$MANUAL" ]; then
             changed=$(printf '%s' "$MANUAL" | jq -Rsc 'split(" ") | map(select(. != ""))')
           else
@@ -108,7 +111,10 @@ jobs:
           fi
           git commit -m "chore: sync packages"
           for attempt in 1 2 3 4 5; do
-            git pull --rebase origin main && git push && exit 0
+            git rebase --abort >/dev/null 2>&1 || true
+            if git pull --rebase origin main && git push; then
+              exit 0
+            fi
             echo "push rejected, retrying (attempt $attempt)..."
             sleep $((RANDOM % 10 + 1))
           done
