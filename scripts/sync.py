@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Detect and apply upstream package updates for the termux-apt-repo."""
 
+import datetime
+import functools
 import glob
 import hashlib
 import json
@@ -29,13 +31,6 @@ class FetchError(Exception):
 def load_config(path="sync.json"):
     with open(path) as f:
         return json.load(f)
-
-
-def read_state(path="sync-state.json"):
-    if os.path.exists(path):
-        with open(path) as f:
-            return json.load(f)
-    return {}
 
 
 def _open_json(url, opener):
@@ -128,25 +123,40 @@ def fetch_latest(cfg, fetch=fetch_json):
     if detect == "master_head":
         commit = fetch("%s/repos/%s/commits/master" % (API, upstream))
         contents = fetch("%s/repos/%s/contents/" % (API, upstream))
-        result = _tdm_version(contents)
-        if result is None:
+        deb_name = _newest_deb(contents)
+        if deb_name is None:
             return None
-        new, deb_name = result
-        return {"new": new, "sha": commit["sha"], "deb_name": deb_name}
+        codename = _parse_codename(deb_name) or "master"
+        epoch = _epoch_from(commit["commit"]["committer"]["date"])
+        return {"new": "%s+%s" % (codename, epoch), "deb_name": deb_name}
 
     raise ValueError("unknown detect %r" % detect)
 
 
-def _tdm_version(contents):
-    debs = sorted(
-        (c["name"] for c in contents
-         if c["name"].lower().endswith(".deb")),
-        reverse=True)
+def _newest_deb(contents):
+    debs = [c["name"] for c in contents if c["name"].lower().endswith(".deb")]
+    best = None
+    best_ver = -1
     for deb in debs:
-        m = re.search(r"-v(\d+)-LTS-Codenamed-([A-Za-z]+)\.deb$", deb)
-        if m:
-            return "%s-%s" % (m.group(1), m.group(2).lower()), deb
+        m = re.search(r"-v(\d+)-LTS-Codenamed-", deb)
+        if m and int(m.group(1)) > best_ver:
+            best_ver = int(m.group(1))
+            best = deb
+    if best is not None:
+        return best
+    return sorted(debs, reverse=True)[0] if debs else None
+
+
+def _parse_codename(deb_name):
+    m = re.search(r"-v(\d+)-LTS-Codenamed-([A-Za-z]+)\.deb$", deb_name)
+    if m:
+        return "%s-%s" % (m.group(1), m.group(2).lower())
     return None
+
+
+def _epoch_from(date_str):
+    dt = datetime.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+    return int(dt.timestamp())
 
 
 def recipe_version(name):
@@ -157,15 +167,6 @@ def recipe_version(name):
             if m:
                 return m.group(1)
     raise ValueError("no TERMUX_PKG_VERSION in %s" % path)
-
-
-def _version_in(build_path):
-    with open(build_path) as f:
-        for line in f:
-            m = re.match(r'TERMUX_PKG_VERSION="([^"]+)"', line)
-            if m:
-                return m.group(1)
-    return None
 
 
 def published_version(name):
@@ -200,22 +201,20 @@ def _numeric_split_lt(a, b):
     return key(a) < key(b)
 
 
-def needs_update(name, latest, state):
+def needs_update(name, latest):
     if latest is None:
         return False
-    if name == "termux-dm":
-        return latest.get("sha") != state.get(name, {}).get("last_sha")
     return _version_lt(published_version(name), latest["new"])
 
 
-def write_state(state, path="sync-state.json"):
-    with open(path, "w") as f:
-        json.dump(state, f, indent=2)
-        f.write("\n")
-
-
-def _version_sort_key(v):
-    return [int(x) if x.isdigit() else 0 for x in re.split(r"[^0-9]+", v)]
+def _dpkg_version_cmp(a, b):
+    if subprocess.run(["dpkg", "--compare-versions", a, "lt", b],
+                      capture_output=True).returncode == 0:
+        return -1
+    if subprocess.run(["dpkg", "--compare-versions", b, "lt", a],
+                      capture_output=True).returncode == 0:
+        return 1
+    return 0
 
 
 def _dedupe_latest(debs_dir):
@@ -228,7 +227,8 @@ def _dedupe_latest(debs_dir):
         name, version = m.group(1), m.group(2)
         by_name.setdefault(name, []).append((version, deb))
     for entries in by_name.values():
-        entries.sort(key=lambda e: _version_sort_key(e[0]))
+        entries.sort(key=functools.cmp_to_key(
+            lambda a, b: _dpkg_version_cmp(a[0], b[0])))
         for _version, deb in entries[:-1]:
             os.unlink(deb)
 
@@ -293,15 +293,28 @@ def _sha256_of_url(url, download=None):
     return hashlib.sha256(download(url)).hexdigest()
 
 
+def _find_file(root, name):
+    matches = []
+    for dirpath, _dirs, files in os.walk(root):
+        if name in files:
+            matches.append(os.path.join(dirpath, name))
+    if not matches:
+        return None
+    for m in matches:
+        if os.path.basename(os.path.dirname(m)) == "bin":
+            return m
+    return matches[0]
+
+
 def _revendor_tdm(pkg_dir, deb_path):
     tmp = tempfile.mkdtemp()
     try:
         subprocess.run(["dpkg-deb", "-x", deb_path, tmp],
                        check=True, capture_output=True)
         for f in ("tdm", "tdmpasswd"):
-            src = os.path.join(tmp, "usr", "bin", f)
-            if not os.path.exists(src):
-                raise ValueError("deb missing usr/bin/%s" % f)
+            src = _find_file(tmp, f)
+            if src is None:
+                raise ValueError("deb missing %s" % f)
             shutil.copy2(src, os.path.join(pkg_dir, f))
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
@@ -334,10 +347,7 @@ def bump(name, latest, root=".", download=None):
 
     elif name == "termux-dm":
         build = os.path.join(pkg_dir, "build.sh")
-        new = latest["new"]
-        if new == _version_in(build):
-            new = "%s+%s" % (new, latest["sha"][:7])
-        _set_in_file(build, "TERMUX_PKG_VERSION", new)
+        _set_in_file(build, "TERMUX_PKG_VERSION", latest["new"])
         if download is None:
             download = _download_bytes
         deb_bytes = download(
@@ -350,10 +360,6 @@ def bump(name, latest, root=".", download=None):
             _revendor_tdm(pkg_dir, deb_path)
         finally:
             os.unlink(deb_path)
-        state_path = os.path.join(root, "sync-state.json")
-        state = read_state(state_path)
-        state.setdefault("termux-dm", {})["last_sha"] = latest["sha"]
-        write_state(state, state_path)
 
     elif name == "termux-settings":
         build = os.path.join(pkg_dir, "build.sh")
@@ -380,8 +386,7 @@ def detect(name):
     cfg = _config_for(name)
     latest = fetch_latest(cfg)
     current = published_version(name)
-    state = read_state()
-    changed = needs_update(name, latest, state)
+    changed = needs_update(name, latest)
     return {
         "name": name,
         "current": current,
@@ -392,18 +397,25 @@ def detect(name):
 
 def detect_all():
     cfg = load_config()
-    state = read_state()
     out = []
     for pkg in cfg["packages"]:
         name = pkg["name"]
-        latest = fetch_latest(pkg)
-        current = published_version(name)
-        out.append({
-            "name": name,
-            "current": current,
-            "new": latest["new"] if latest else None,
-            "changed": needs_update(name, latest, state),
-        })
+        try:
+            latest = fetch_latest(pkg)
+            out.append({
+                "name": name,
+                "current": published_version(name),
+                "new": latest["new"] if latest else None,
+                "changed": needs_update(name, latest),
+            })
+        except Exception as e:
+            out.append({
+                "name": name,
+                "current": None,
+                "new": None,
+                "changed": False,
+                "error": str(e),
+            })
     return out
 
 
@@ -419,6 +431,7 @@ def main(argv=None):
 
     b = sub.add_parser("bump")
     b.add_argument("name")
+    b.add_argument("--force", action="store_true")
 
     sd = sub.add_parser("stage-debs")
     sd.add_argument("new_dir")
@@ -436,7 +449,7 @@ def main(argv=None):
     if args.cmd == "bump":
         cfg = _config_for(args.name)
         latest = fetch_latest(cfg)
-        if not needs_update(args.name, latest, read_state()):
+        if not args.force and not needs_update(args.name, latest):
             return 2
         bump(args.name, latest)
         return 0

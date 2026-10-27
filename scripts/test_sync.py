@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -37,7 +38,8 @@ def fake_fetch(url):
     if "termux-settings/tags" in url:
         return [{"name": "v1.1.1"}]
     if "termux-display-manager-repo/commits/master" in url:
-        return {"sha": "abc123def456"}
+        return {"sha": "abc123def456",
+                "commit": {"committer": {"date": "2026-10-26T18:41:12Z"}}}
     if "termux-display-manager-repo/contents/" in url:
         return [
             {"name": "TermuxDM-v6-LTS-Codenamed-Morano.deb"},
@@ -79,8 +81,9 @@ class TestFetchLatest(unittest.TestCase):
             {"name": "termux-dm", "detect": "master_head",
              "upstream": "GeneralKaos666/termux-display-manager-repo"},
             fetch=fake_fetch)
-        self.assertEqual(info["new"], "6-morano")
-        self.assertEqual(info["sha"], "abc123def456")
+        m = re.fullmatch(r"6-morano\+(\d+)", info["new"])
+        self.assertIsNotNone(m)
+        self.assertGreater(int(m.group(1)), 0)
         self.assertEqual(info["deb_name"], "TermuxDM-v6-LTS-Codenamed-Morano.deb")
 
     def test_empty_release_no_change(self):
@@ -115,21 +118,21 @@ class TestPublishedVersion(unittest.TestCase):
 class TestNeedsUpdate(unittest.TestCase):
     def test_newer_release(self):
         self.assertTrue(sync.needs_update(
-            "termux-settings", {"new": "1.1.1", "tag": "v1.1.1"}, {}))
+            "termux-settings", {"new": "1.1.1", "tag": "v1.1.1"}))
 
     def test_unchanged(self):
         self.assertFalse(sync.needs_update(
-            "flutter", {"new": "3.47.8-6", "release_base": "x"}, {}))
+            "flutter", {"new": "3.47.8-6", "release_base": "x"}))
 
-    def test_tdm_by_sha(self):
+    def test_tdm_epoch_newer(self):
+        # published "6-morano", latest "6-morano+<epoch>" -> newer
         self.assertTrue(sync.needs_update(
-            "termux-dm", {"new": "6-morano", "sha": "newsha"}, {}))
+            "termux-dm", {"new": "6-morano+1729953672"}))
         self.assertFalse(sync.needs_update(
-            "termux-dm", {"new": "6-morano", "sha": "newsha"},
-            {"termux-dm": {"last_sha": "newsha"}}))
+            "termux-dm", {"new": "6-morano"}))
 
     def test_none_latest_no_change(self):
-        self.assertFalse(sync.needs_update("flutter", None, {}))
+        self.assertFalse(sync.needs_update("flutter", None))
 
 
 def _copy_pkg(tmp, pkg):
@@ -145,21 +148,25 @@ def _read(path):
         return f.read()
 
 
-def _make_tdm_deb():
+def _make_tdm_deb(layout="termux"):
     d = tempfile.mkdtemp()
     root = os.path.join(d, "root")
-    os.makedirs(os.path.join(root, "usr", "bin"))
-    with open(os.path.join(root, "usr", "bin", "tdm"), "w") as f:
+    if layout == "termux":
+        bindir = os.path.join(root, "data", "data", "com.termux", "files", "usr", "bin")
+    else:
+        bindir = os.path.join(root, "usr", "bin")
+    os.makedirs(bindir)
+    with open(os.path.join(bindir, "tdm"), "w") as f:
         f.write("#!/bin/sh\necho tdm\n")
-    with open(os.path.join(root, "usr", "bin", "tdmpasswd"), "w") as f:
+    with open(os.path.join(bindir, "tdmpasswd"), "w") as f:
         f.write("#!/bin/sh\necho tdmpasswd\n")
+    os.chmod(os.path.join(bindir, "tdm"), 0o755)
+    os.chmod(os.path.join(bindir, "tdmpasswd"), 0o755)
     os.makedirs(os.path.join(root, "DEBIAN"))
     with open(os.path.join(root, "DEBIAN", "control"), "w") as f:
         f.write("Package: tdm\nVersion: 1.0\nArchitecture: all\n"
                 "Maintainer: test\nDescription: test\n")
     os.chmod(os.path.join(root, "DEBIAN"), 0o755)
-    os.chmod(os.path.join(root, "usr", "bin", "tdm"), 0o755)
-    os.chmod(os.path.join(root, "usr", "bin", "tdmpasswd"), 0o755)
     deb = os.path.join(d, "tdm.deb")
     subprocess.run(
         ["dpkg-deb", "--build", "--root-owner-group", root, deb],
@@ -219,33 +226,29 @@ class TestBump(unittest.TestCase):
                 build)
             self.assertIn('TERMUX_PKG_SHA256=NEWSHA256', build)
 
-    def test_termux_dm_bump_version_and_state(self):
+    def test_termux_dm_bump(self):
         with tempfile.TemporaryDirectory() as tmp:
             _copy_pkg(tmp, "termux-dm")
             deb = _make_tdm_deb()
             sync.bump("termux-dm", {
-                "new": "6-morano",
-                "sha": "newsha",
+                "new": "6-morano+1729953672",
                 "deb_name": "TermuxDM-v6-LTS-Codenamed-Morano.deb",
             }, root=tmp, download=lambda url: deb)
             build = _read(os.path.join(tmp, "packages", "termux-dm", "build.sh"))
-            self.assertIn('TERMUX_PKG_VERSION="6-morano+newsha"', build)
+            self.assertIn('TERMUX_PKG_VERSION="6-morano+1729953672"', build)
             self.assertEqual(_read(os.path.join(tmp, "packages", "termux-dm", "tdm")),
                              "#!/bin/sh\necho tdm\n")
-            state = sync.read_state(os.path.join(tmp, "sync-state.json"))
-            self.assertEqual(state["termux-dm"]["last_sha"], "newsha")
 
-    def test_termux_dm_new_codename_no_suffix(self):
+    def test_termux_dm_bump_debian_layout(self):
         with tempfile.TemporaryDirectory() as tmp:
             _copy_pkg(tmp, "termux-dm")
-            deb = _make_tdm_deb()
+            deb = _make_tdm_deb(layout="debian")
             sync.bump("termux-dm", {
-                "new": "7-aqua",
-                "sha": "abcdef1234567890",
-                "deb_name": "TermuxDM-v7-LTS-Codenamed-Aqua.deb",
+                "new": "6-morano+1729953672",
+                "deb_name": "TermuxDM-v6-LTS-Codenamed-Morano.deb",
             }, root=tmp, download=lambda url: deb)
-            build = _read(os.path.join(tmp, "packages", "termux-dm", "build.sh"))
-            self.assertIn('TERMUX_PKG_VERSION="7-aqua"', build)
+            self.assertEqual(_read(os.path.join(tmp, "packages", "termux-dm", "tdm")),
+                             "#!/bin/sh\necho tdm\n")
 
 
 class TestStageDebs(unittest.TestCase):
@@ -296,6 +299,24 @@ class TestDetect(unittest.TestCase):
         self.assertEqual(out[0]["name"], "a")
         self.assertIsNone(out[1]["new"])
 
+    def test_detect_all_isolates_errors(self):
+        cfg = {"packages": [
+            {"name": "a", "upstream": "x/y", "detect": "latest_tag"},
+            {"name": "b", "upstream": "x/y", "detect": "latest_tag"},
+        ]}
+        with mock.patch("sync.load_config", return_value=cfg), \
+             mock.patch("sync.fetch_latest",
+                        side_effect=[ValueError("bad tag"), {"new": "1", "tag": "v1"}]), \
+             mock.patch("sync.published_version", return_value="0"), \
+             mock.patch("sync.needs_update", return_value=True):
+            out = sync.detect_all()
+        self.assertEqual(len(out), 2)
+        self.assertEqual(out[0]["name"], "a")
+        self.assertFalse(out[0]["changed"])
+        self.assertIn("error", out[0])
+        self.assertEqual(out[1]["name"], "b")
+        self.assertTrue(out[1]["changed"])
+
 
 class TestMain(unittest.TestCase):
     def test_detect_prints_json(self):
@@ -318,6 +339,18 @@ class TestMain(unittest.TestCase):
              mock.patch("sync.needs_update", return_value=False):
             rc = sync.main(["bump", "flutter"])
         self.assertEqual(rc, 2)
+
+    def test_bump_force_bypasses_no_change(self):
+        with mock.patch("sync._config_for",
+                        return_value={"name": "flutter", "upstream": "x/y",
+                                      "detect": "latest_release"}), \
+             mock.patch("sync.fetch_latest",
+                        return_value={"new": "3.47.8-6", "release_base": "x"}), \
+             mock.patch("sync.needs_update", return_value=False), \
+             mock.patch("sync.bump") as mb:
+            rc = sync.main(["bump", "--force", "flutter"])
+        self.assertEqual(rc, 0)
+        mb.assert_called_once_with("flutter", {"new": "3.47.8-6", "release_base": "x"})
 
     def test_stage_debs_cli(self):
         with tempfile.TemporaryDirectory() as tmp:
