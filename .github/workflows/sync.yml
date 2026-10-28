@@ -104,6 +104,11 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Pool .debs are real blobs now (Pages cannot serve LFS), and some are
+          # ~60 MB. HTTP/2 + the default buffer reliably drops such pushes with
+          # "HTTP 408"; HTTP/1.1 with a large buffer is what GitHub recommends.
+          git config http.version HTTP/1.1
+          git config http.postBuffer 524288000
           git add docs/ packages/
           if git diff --cached --quiet; then
             echo "No changes to commit"
