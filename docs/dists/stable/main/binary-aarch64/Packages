@@ -1,60 +1,19 @@
-Package: flutter
-Version: 3.47.8-6
+Package: loaf
+Version: 0.2.0-1
+Section: utils
+Priority: optional
 Architecture: aarch64
-Maintainer: GeneralKaos666 <xkiller1177@gmail.com>
-Pre-Depends: x11-repo
-Depends: git, which, gtk3, xorgproto, ninja, cmake, clang, pkg-config, openjdk-21, wget, curl, unzip, 7zip, binutils, tar, xz-utils
-Homepage: https://www.github.com/flutter/flutter
-Description: Flutter makes it easy and fast to build beautiful apps for mobile and beyond
-Filename: pool/main/f/flutter/flutter_3.47.8-6_aarch64.deb
-Size: 3916
-MD5Sum: ee4ff1265f00951c4be401859756016b
-SHA1: 37387b4d6fe9b4a318ea32905108e832c5cb0477
-SHA256: d3cc170da637f9247bc3cfc9cd8dc43400a463b571ac96f64484fb78efdbb84d
-SHA512: d7628b1072695c169e65373ffd53d018c8eacbacd0d5610cbd1882a746b31cbc0c3c1a0bb6955c59704379699def4c53bbf9444e8e9b48a06a9f9ebe77773ec8
-
-Package: opencode2
-Architecture: aarch64
-Installed-Size: 229184
-Maintainer: Ronald Sloan (for termux) <xkiller1177@gmail.com>
-Version: 2.2.0-1-0
-Homepage: https://github.com/GeneralKaos666/opencode-android
-Depends: ripgrep, libc++
-Description: OpenCode AI coding assistant for Android/Termux
-Filename: pool/main/o/opencode2/opencode2_2.2.0-1-0_aarch64.deb
-Size: 61108616
-MD5Sum: 373b07b6664da5b38be7a617213bf1ab
-SHA1: 9c447b6c9d02e0095ebb1adc62ebe25e8a8d5f23
-SHA256: 5e7517df3e22973e5f4d8d492b4b39ee00b9c0b0c397e366569f5927ea8a3ff5
-SHA512: 11c97b160eae457563527917e40345b97f2b678f7e78840274041f5596717221fdd7fed9845083a4f212ec64ff05e172ba703ca6dd81c82106e7faf8c2aa7fa8
-
-Package: termux-dm
-Architecture: aarch64
-Installed-Size: 80
-Maintainer: Ronald Sloan (for termux) <xkiller1177@gmail.com>
-Version: 6-morano+1784916667-0
-Homepage: https://github.com/GeneralKaos666/termux-display-manager-repo
-Depends: python, python-tkinter, python-pillow, tigervnc, tigervnc-viewer
-Description: Termux display manager
-Filename: pool/main/t/termux-dm/termux-dm_6-morano+1784916667-0_aarch64.deb
-Size: 8604
-MD5Sum: 0437fba03dfd413ad9a220aff6446b67
-SHA1: 23b742a1878c5359d5ac0d377e4370824ea58681
-SHA256: 8f711799cb26313bb5a701436a6768c04df178ec6abf5fb23f3f944780073813
-SHA512: 8fab65e78f59f73a5b2b5811c6243120c7989fa995da04a98747a4a805fa762459ef022943be8244104fec9dea2ad55f59704ed3508d6ad57afc13acd5f8d581
-
-Package: termux-settings
-Architecture: aarch64
-Installed-Size: 2288
-Maintainer: Ronald Sloan (for termux) <xkiller1177@gmail.com>
-Version: 1.1.1
-Homepage: https://github.com/GeneralKaos666/termux-settings
-Depends: termux-tools
-Description: Keyboard-driven TUI to change Termux colors, app theme, and fonts
-Filename: pool/main/t/termux-settings/termux-settings_1.1.1_aarch64.deb
-Size: 918196
-MD5Sum: a385a39b1f01ac590dc8425842aa9dfc
-SHA1: 53dfb042b000d584c1092c3ac9c9bffaaa610739
-SHA256: d6daff2c3511e9fc4e10bb595d8945a64ad28ce52b9514eb6d62661b3d64017e
-SHA512: 3903a22f7d9ce249728e17d97df2f2f0a744f5ff224d06ff44a41de9203b2d3f2363bd1a2d4df0face2238a7156c1819f0ce84ed2dfff6670bc2a95a45acc9dd
+Depends: libc++, qt6-qtbase, qt6-qtdeclarative, qt6-qtsvg, qt6-qtwayland
+Recommends: dbus, 7zip, udisks2
+Maintainer: Musa Murad <musamurad@proton.me>
+Homepage: https://github.com/m-uvex/loaf-fm
+Description: Material 3 Expressive File Manager
+ Loaf is a modern, fast file manager built with Qt6 Quick and Rust,
+ featuring Material 3 Expressive design, spring animations, and native system integration.
+Filename: pool/main/l/loaf/loaf_0.2.0-1_aarch64.deb
+Size: 11975324
+MD5Sum: d44f43d5647e0e1fcbd42c6637562beb
+SHA1: 1e7ddcc9efce7eec919722b9df3a11553c5ea147
+SHA256: d184f608df55915e8387b2e38cf8593c8810b58c94523a9f86ca9ad5a0698931
+SHA512: 396400af500c2a53dfc442ca681c347533e839758f3eabd80e07214802869ff88d76a85f251c21f3be3a514f9fbc95888ef326a13d218c4264fdcbd627961ec0
 

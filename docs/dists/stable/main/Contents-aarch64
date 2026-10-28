@@ -1,10 +1,2 @@
-data/data/com.termux/files/usr/bin/opencode                                      opencode2
-data/data/com.termux/files/usr/bin/opencode2                                     opencode2
-data/data/com.termux/files/usr/bin/tdm                                           termux-dm
-data/data/com.termux/files/usr/bin/tdmpasswd                                     termux-dm
-data/data/com.termux/files/usr/bin/termux-settings                               termux-settings
-data/data/com.termux/files/usr/libexec/opencode2/opencode2.bin                   opencode2
-data/data/com.termux/files/usr/share/doc/opencode2/LICENSE                       opencode2
-data/data/com.termux/files/usr/share/doc/opencode2/copyright                     opencode2
-data/data/com.termux/files/usr/share/doc/termux-dm/copyright                     termux-dm
-data/data/com.termux/files/usr/share/doc/termux-settings/copyright               termux-settings
+data/data/com.termux/files/usr/bin/loaf                                          loaf
+data/data/com.termux/files/usr/share/applications/loaf.desktop                   loaf
