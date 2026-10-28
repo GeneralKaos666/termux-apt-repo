@@ -117,37 +117,111 @@ class TestFetchLatest(unittest.TestCase):
 
 
 class TestPublishedVersion(unittest.TestCase):
+    def _fixture(self, root, packages_text=None, versions=None):
+        versions = versions or {"flutter": "3.47.8-9"}
+        for name, version in versions.items():
+            pkg_dir = os.path.join(root, "packages", name)
+            os.makedirs(pkg_dir, exist_ok=True)
+            with open(os.path.join(pkg_dir, "build.sh"), "w") as f:
+                f.write('TERMUX_PKG_VERSION="%s"\n' % version)
+        if packages_text is not None:
+            dist = os.path.join(root, "docs", "dists", "stable", "main",
+                                "binary-aarch64")
+            os.makedirs(dist, exist_ok=True)
+            with open(os.path.join(dist, "Packages"), "w") as f:
+                f.write(packages_text)
+
     def test_reads_from_packages_file(self):
-        self.assertEqual(sync.published_version("flutter"), "3.47.8-6")
-        self.assertEqual(sync.published_version("termux-settings"), "1.1.1")
+        with tempfile.TemporaryDirectory() as tmp:
+            self._fixture(tmp, (
+                "Package: flutter\nVersion: 3.47.8-9-0\n\n"
+                "Package: termux-settings\nVersion: 1.1.1\n"))
+            self.assertEqual(
+                sync.published_version("flutter", root=tmp), "3.47.8-9")
+            self.assertEqual(
+                sync.published_version("termux-settings", root=tmp), "1.1.1")
+
+    def test_strips_harness_revision(self):
+        # "3.47.8-7-0" must compare as "3.47.8-7", not sort above "3.47.8-8".
+        with tempfile.TemporaryDirectory() as tmp:
+            self._fixture(tmp, "Package: flutter\nVersion: 3.47.8-7-0\n\n")
+            self.assertEqual(
+                sync.published_version("flutter", root=tmp), "3.47.8-7")
+            self.assertTrue(sync._version_lt(
+                sync.published_version("flutter", root=tmp), "3.47.8-8"))
 
     def test_recipe_version(self):
-        self.assertEqual(sync.recipe_version("flutter"), "3.47.8-6")
-        self.assertEqual(sync.recipe_version("opencode2"), "2.1.4-2")
+        with tempfile.TemporaryDirectory() as tmp:
+            self._fixture(tmp, versions={"flutter": "3.47.8-9"})
+            self.assertEqual(
+                sync.recipe_version("flutter", root=tmp), "3.47.8-9")
 
-    def test_falls_back_to_recipe(self):
-        with mock.patch("sync.os.path.exists", return_value=False):
-            self.assertEqual(sync.published_version("flutter"), "3.47.8-6")
+    def test_recipe_without_version_raises(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pkg_dir = os.path.join(tmp, "packages", "broken")
+            os.makedirs(pkg_dir)
+            with open(os.path.join(pkg_dir, "build.sh"), "w") as f:
+                f.write('TERMUX_PKG_DESCRIPTION="no version here"\n')
+            with self.assertRaises(ValueError):
+                sync.recipe_version("broken", root=tmp)
+
+    def test_falls_back_to_recipe_when_packages_file_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._fixture(tmp, versions={"flutter": "3.47.8-9"})
+            self.assertEqual(
+                sync.published_version("flutter", root=tmp), "3.47.8-9")
+
+    def test_falls_back_to_recipe_when_package_absent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._fixture(tmp, "Package: other\nVersion: 1.0\n\n",
+                          versions={"flutter": "3.47.8-9"})
+            self.assertEqual(
+                sync.published_version("flutter", root=tmp), "3.47.8-9")
 
 
 class TestNeedsUpdate(unittest.TestCase):
-    def test_newer_release(self):
-        self.assertFalse(sync.needs_update(
-            "termux-settings", {"new": "1.1.1", "tag": "v1.1.1"}))
-
     def test_unchanged(self):
-        self.assertFalse(sync.needs_update(
-            "flutter", {"new": "3.47.8-6", "release_base": "x"}))
+        with mock.patch("sync.published_version", return_value="3.47.8-9"):
+            self.assertFalse(sync.needs_update(
+                "flutter", {"new": "3.47.8-9", "release_base": "x"}))
+
+    def test_newer_than_published(self):
+        with mock.patch("sync.published_version", return_value="3.47.8-9"):
+            self.assertTrue(sync.needs_update(
+                "flutter", {"new": "3.47.8-10", "release_base": "x"}))
+
+    def test_older_than_published(self):
+        with mock.patch("sync.published_version", return_value="3.47.8-9"):
+            self.assertFalse(sync.needs_update(
+                "termux-settings", {"new": "1.1.1", "tag": "v1.1.1"}))
 
     def test_tdm_epoch_newer(self):
         # published "6-morano+...", latest "6-morano+<epoch>" -> newer if epoch greater
-        self.assertTrue(sync.needs_update(
-            "termux-dm", {"new": "6-morano+9999999999-0"}))
-        self.assertFalse(sync.needs_update(
-            "termux-dm", {"new": "6-morano"}))
+        with mock.patch("sync.published_version",
+                        return_value="6-morano+1784916667"):
+            self.assertTrue(sync.needs_update(
+                "termux-dm", {"new": "6-morano+9999999999-0"}))
+            self.assertFalse(sync.needs_update(
+                "termux-dm", {"new": "6-morano"}))
 
     def test_none_latest_no_change(self):
         self.assertFalse(sync.needs_update("flutter", None))
+
+
+class TestFlutterRecipe(unittest.TestCase):
+    """The harness silently ignores postinst/preinst/postrm copied by name, so
+    the recipe must wire them up or the stub ships without maintainer scripts."""
+
+    def setUp(self):
+        self.pkg = os.path.join(os.path.dirname(__file__), "..", "packages", "flutter")
+
+    def test_declares_debscripts_hook(self):
+        with open(os.path.join(self.pkg, "build.sh")) as f:
+            self.assertIn("termux_step_create_debscripts", f.read())
+
+    def test_ships_maintainer_scripts(self):
+        for name in ("postinst", "preinst", "postrm"):
+            self.assertTrue(os.path.isfile(os.path.join(self.pkg, name)), name)
 
 
 def _copy_pkg(tmp, pkg):

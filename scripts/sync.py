@@ -187,8 +187,8 @@ def _epoch_from(date_str):
     return int(dt.timestamp())
 
 
-def recipe_version(name):
-    path = os.path.join("packages", name, "build.sh")
+def recipe_version(name, root="."):
+    path = os.path.join(root, "packages", name, "build.sh")
     with open(path) as f:
         for line in f:
             m = re.match(r'TERMUX_PKG_VERSION="([^"]+)"', line)
@@ -197,8 +197,15 @@ def recipe_version(name):
     raise ValueError("no TERMUX_PKG_VERSION in %s" % path)
 
 
-def published_version(name):
-    pkg_path = os.path.join("docs", "dists", "stable", "main",
+def published_version(name, root="."):
+    """Installed version as apt sees it, minus the harness revision.
+
+    The harness publishes TERMUX_PKG_VERSION + "-" + TERMUX_PKG_REVISION
+    (usually "-0"), while upstream assets and recipes carry just the version.
+    Comparing the two directly is wrong: dpkg splits at the last hyphen, so
+    "3.47.8-7-0" sorts above "3.47.8-8" and every update would be missed.
+    """
+    pkg_path = os.path.join(root, "docs", "dists", "stable", "main",
                             "binary-aarch64", "Packages")
     if os.path.exists(pkg_path):
         with open(pkg_path) as f:
@@ -208,8 +215,8 @@ def published_version(name):
             if pkg and pkg.group(1).strip() == name:
                 ver = re.search(r"^Version:\s*(.+)$", block, re.M)
                 if ver:
-                    return ver.group(1).strip()
-    return recipe_version(name)
+                    return re.sub(r"-[^-]*$", "", ver.group(1).strip())
+    return recipe_version(name, root)
 
 
 def _version_lt(a, b):
