@@ -1,17 +1,17 @@
 Package: flutter
-Version: 3.47.8-6
 Architecture: aarch64
-Maintainer: GeneralKaos666 <xkiller1177@gmail.com>
-Pre-Depends: x11-repo
+Installed-Size: 4
+Maintainer: Ronald Sloan (for termux) <xkiller1177@gmail.com>
+Version: 3.47.8-7-0
+Homepage: https://github.com/GeneralKaos666/flutter-for-termux
 Depends: git, which, gtk3, xorgproto, ninja, cmake, clang, pkg-config, openjdk-21, wget, curl, unzip, 7zip, binutils, tar, xz-utils
-Homepage: https://www.github.com/flutter/flutter
-Description: Flutter makes it easy and fast to build beautiful apps for mobile and beyond
-Filename: pool/main/f/flutter/flutter_3.47.8-6_aarch64.deb
-Size: 3916
-MD5Sum: ee4ff1265f00951c4be401859756016b
-SHA1: 37387b4d6fe9b4a318ea32905108e832c5cb0477
-SHA256: d3cc170da637f9247bc3cfc9cd8dc43400a463b571ac96f64484fb78efdbb84d
-SHA512: d7628b1072695c169e65373ffd53d018c8eacbacd0d5610cbd1882a746b31cbc0c3c1a0bb6955c59704379699def4c53bbf9444e8e9b48a06a9f9ebe77773ec8
+Description: Flutter SDK (stable)
+Filename: pool/main/f/flutter/flutter_3.47.8-7-0_aarch64.deb
+Size: 3868
+MD5Sum: b8eb83aa44917abd29e294be01c44319
+SHA1: f2821a5538305a268e4e35f906dbd3d27f4051cc
+SHA256: 96873e792350e14ba6c81f7d2318a744e229e9740d2933fbabf2a0e8758be7ed
+SHA512: 9974e02aa9ce83b56e127be4c184dac3f8b762cc0b2735d6e66e72b53faf8d3486ccbb7bc3e55bd35eab9ee465ecbeaa008753745425a38b55d33092bd70cb95
 
 Package: loaf
 Version: 0.2.0-1
