@@ -78,6 +78,21 @@ def _find_asset(assets, pattern):
     return None
 
 
+def _find_newest_asset(assets, pattern):
+    """Pick the highest version matching `pattern`, not the first one.
+
+    A release can accumulate several rebuilds of the same upstream tag, and the
+    API lists assets oldest first, so first-match would pin the package to the
+    oldest build forever.
+    """
+    best = None
+    for a in assets:
+        m = re.search(pattern, a["name"])
+        if m and (best is None or _version_lt(best.group(1), m.group(1))):
+            best = m
+    return best
+
+
 def fetch_latest(cfg, fetch=fetch_json):
     upstream = cfg["upstream"]
     name = cfg["name"]
@@ -93,7 +108,8 @@ def fetch_latest(cfg, fetch=fetch_json):
         tag = rel.get("tag_name", "")
         assets = rel.get("assets", []) or []
         if name == "flutter":
-            m = _find_asset(assets, r"flutter_([0-9][0-9A-Za-z.+-]*)_aarch64\.deb$")
+            m = _find_newest_asset(
+                assets, r"flutter_([0-9][0-9A-Za-z.+-]*)_aarch64\.deb$")
             if not m:
                 return None
             return {

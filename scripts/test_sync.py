@@ -60,6 +60,21 @@ class TestFetchLatest(unittest.TestCase):
             info["release_base"],
             "https://github.com/GeneralKaos666/flutter-for-termux/releases/download/3.47.8")
 
+    def test_flutter_new_is_highest_when_release_holds_several_builds(self):
+        # A release can accumulate rebuilds; the API returns them oldest first.
+        def f(url):
+            return _release("3.47.8", [
+                "flutter_3.47.8-6_aarch64.deb",
+                "flutter_3.47.8-6_aarch64.deb.sha256",
+                "flutter_3.47.8-7_aarch64.deb",
+                "flutter_3.47.8-7_aarch64.deb.sha256",
+            ])
+        info = sync.fetch_latest(
+            {"name": "flutter", "detect": "latest_release",
+             "upstream": "GeneralKaos666/flutter-for-termux"},
+            fetch=f)
+        self.assertEqual(info["new"], "3.47.8-7")
+
     def test_opencode2_new_from_tag(self):
         info = sync.fetch_latest(
             {"name": "opencode2", "detect": "latest_release",
