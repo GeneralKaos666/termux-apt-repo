@@ -2,8 +2,8 @@ TERMUX_PKG_HOMEPAGE=https://github.com/GeneralKaos666/opencode-android
 TERMUX_PKG_DESCRIPTION="OpenCode AI coding assistant for Android/Termux"
 TERMUX_PKG_LICENSE="MIT"
 TERMUX_PKG_MAINTAINER="Ronald Sloan (for termux) <xkiller1177@gmail.com>"
-TERMUX_PKG_VERSION="2.2.0-1"
-TERMUX_PKG_SRCURL="https://github.com/GeneralKaos666/opencode-android/archive/refs/tags/v2.2.0-android.tar.gz"
+TERMUX_PKG_VERSION="2.2.1-1"
+TERMUX_PKG_SRCURL="https://github.com/GeneralKaos666/opencode-android/archive/refs/tags/v2.2.1-android.tar.gz"
 TERMUX_PKG_SHA256=SKIP_CHECKSUM
 TERMUX_PKG_DEPENDS="ripgrep, libc++"
 
@@ -12,7 +12,7 @@ TERMUX_PKG_DEPENDS="ripgrep, libc++"
 # in this directory. The release also ships a ready-made
 # `opencode2_2.1.4-2_aarch64.deb` if you prefer to mirror that directly.
 termux_step_make_install() {
-	termux_download "https://github.com/GeneralKaos666/opencode-android/releases/download/v2.2.0-android/opencode2-2.2.0-android-aarch64.zip" opencode2.zip SKIP_CHECKSUM
+	termux_download "https://github.com/GeneralKaos666/opencode-android/releases/download/v2.2.1-android/opencode2-2.2.1-android-aarch64.zip" opencode2.zip SKIP_CHECKSUM
 	unzip -o opencode2.zip opencode2.bin
 
 	install -Dm755 "${TERMUX_PKG_BUILDER_DIR}/opencode2" "${TERMUX_PREFIX}/bin/opencode2"
