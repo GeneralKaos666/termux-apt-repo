@@ -10,8 +10,8 @@ set -euo pipefail
 # through the EXIT trap, so dpkg never sees a half-written tree.
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
 WORK="${TMPDIR:-$PREFIX/tmp}/apt-stub.$$"
-VERSION="3.47.8-7"
-RELEASE_BASE="https://github.com/GeneralKaos666/flutter-for-termux/releases/download/3.47.8"
+VERSION="3.47.9-1"
+RELEASE_BASE="https://github.com/GeneralKaos666/flutter-for-termux/releases/download/3.47.9"
 OWNED_PATHS=(bin/flutter etc/profile.d/flutter.sh opt/flutter share/flutter)
 DEB="flutter_${VERSION}_aarch64.deb"
 MARKER="$PREFIX/share/flutter/.stub-version"

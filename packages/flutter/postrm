@@ -7,7 +7,7 @@ set -euo pipefail
 # Snapshot removal uses the exact per-group path (never a glob), so foreign
 # .flutter.old.* files in shared directories survive.
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
-VERSION="3.47.8-7"
+VERSION="3.47.9-1"
 OWNED_PATHS=(bin/flutter etc/profile.d/flutter.sh opt/flutter share/flutter)
 
 case "${1:-}" in

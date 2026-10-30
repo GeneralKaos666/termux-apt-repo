@@ -5,7 +5,7 @@ set -euo pipefail
 # The version and owned-path placeholders are injected at render time so every
 # shipped maintainer script carries the same package identity.
 PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
-VERSION="3.47.8-7"
+VERSION="3.47.9-1"
 OWNED_PATHS=(bin/flutter etc/profile.d/flutter.sh opt/flutter share/flutter)
 
 action="${1:-}"
