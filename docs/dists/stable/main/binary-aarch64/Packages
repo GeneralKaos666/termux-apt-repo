@@ -2,16 +2,16 @@ Package: flutter
 Architecture: aarch64
 Installed-Size: 4
 Maintainer: Ronald Sloan (for termux) <xkiller1177@gmail.com>
-Version: 3.50.0-1-0
+Version: 3.50.0-2-0
 Homepage: https://github.com/GeneralKaos666/flutter-for-termux
 Depends: git, which, gtk3, xorgproto, ninja, cmake, clang, pkg-config, openjdk-21, wget, curl, unzip, 7zip, binutils, tar, xz-utils
 Description: Flutter SDK (stable)
-Filename: pool/main/f/flutter/flutter_3.50.0-1-0_aarch64.deb
+Filename: pool/main/f/flutter/flutter_3.50.0-2-0_aarch64.deb
 Size: 3868
-MD5Sum: 8afc7bef86beea5163b5e43d9f8a1a9c
-SHA1: 79b09c0e4c8262abc507b90c1d6c9e297f0bd111
-SHA256: 5617ae00cca03c123da8bf23c8c3abad6632c85763c0a1b49d40b94fd2cd2a5a
-SHA512: 3e27d5732233b196f7bb2aa24b56a006d084b3b6e473e13791899a6820cee5e1e658d82f57250ebe98e688f9cbb644da558a043e240042ad91f75bd0d116c21e
+MD5Sum: 28f27632c3c49e4be9bf89b13a1f2537
+SHA1: 8ffddaaf83c6ced01dcc8df69fd79e295fb857ae
+SHA256: b624a2c5f693c229dc8641c807155f815c00a63320c1f36af331e05892666685
+SHA512: c2593c2c0b0548dbb4f7e6edd0486b4ad3aff1fbe7b1c584aceb5446f8b251c288b04d214be2dc41133dbf32eda118f4fef22d78bca8f72809afd4fe3ab409f4
 
 Package: loaf
 Version: 0.2.0-1
