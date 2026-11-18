@@ -34,18 +34,18 @@ SHA512: bf012356ef989592dff770cfc9cca799c1c75c4da7811d47d3e71e26ac821dd783941983
 
 Package: opencode2
 Architecture: aarch64
-Installed-Size: 241600
+Installed-Size: 241984
 Maintainer: Ronald Sloan (for termux) <xkiller1177@gmail.com>
-Version: 2.3.0-1-0
+Version: 2.3.1-1-0
 Homepage: https://github.com/GeneralKaos666/opencode-android
 Depends: ripgrep, libc++
 Description: OpenCode AI coding assistant for Android/Termux
-Filename: pool/main/o/opencode2/opencode2_2.3.0-1-0_aarch64.deb
-Size: 65495948
-MD5Sum: 6f112092a48f0c3ed7f1244f21eac79d
-SHA1: de06c9e59e17cfc90634ab999f4563e41a8e713d
-SHA256: 38dbdf268c319865597714922efbf0486d8a276f05799c9829bd5ac5b6eb89e1
-SHA512: 6dbf3cd603f9e6d1165156c032c277d3921a43a013b7b0928c33370d8329af75a742a943d8af380d13a68cc1ee7d15ed162c82c4c49a831254d7760a9c69fafa
+Filename: pool/main/o/opencode2/opencode2_2.3.1-1-0_aarch64.deb
+Size: 65631452
+MD5Sum: f5e4c948e348c38fabfe1907ebf8e311
+SHA1: a4b86a6d0f6c45325f6d75151ca9d8f5e3ed3c36
+SHA256: 45e4b57809ed17678313bfd4b1c470bc62e01bc55ccbba0424b9da57ec32afa7
+SHA512: 4af920858cc465755303c1a1eac4b39ff25e01ded55c4ce594a15ea896a1cc3c775d23c360487aea27234cb2db32f4055eeb140fcb159b068373cbaec5ec7150
 
 Package: termux-dm
 Architecture: aarch64
