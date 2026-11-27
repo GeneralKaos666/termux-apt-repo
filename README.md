@@ -8,6 +8,7 @@ A standalone APT repository for my Termux packages, published on GitHub Pages.
 | `opencode2` | OpenCode AI coding assistant for Android/Termux | `aarch64` |
 | `termux-dm` | Termux display manager | `aarch64` |
 | `termux-settings` | Keyboard-driven TUI to change Termux colors, app theme, and fonts | `aarch64` |
+| `termux-sync` | Back up and restore a Termux environment across devices | `aarch64`, `arm` |
 
 ## Quick start (Termux)
 
@@ -23,7 +24,7 @@ echo "deb [signed-by=$PREFIX/etc/apt/keyrings/termux-apt-repo.gpg] https://gener
 
 # 3. update and install
 apt update
-apt install opencode2 termux-dm
+apt install opencode2 termux-dm termux-sync
 ```
 
 ## Verify the key
@@ -66,6 +67,7 @@ It runs on a schedule (hourly), on push to `packages/**` / `sync.json` /
 | `opencode2` | `GeneralKaos666/opencode-android` | latest release |
 | `termux-dm` | `GeneralKaos666/termux-display-manager-repo` | latest `master` commit |
 | `termux-settings` | `GeneralKaos666/termux-settings` | latest tag |
+| `termux-sync` | `GeneralKaos666/termux-sync-rust` | latest tag (`aarch64`, `arm`) |
 
 ## Required secrets
 
