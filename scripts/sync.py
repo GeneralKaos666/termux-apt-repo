@@ -144,7 +144,7 @@ def fetch_latest(cfg, fetch=fetch_json):
         if not tags:
             return None
         tag = tags[0]["name"]
-        if name == "termux-settings":
+        if name in ("termux-settings", "termux-sync"):
             return {"new": tag.lstrip("v"), "tag": tag}
         return {"new": tag, "tag": tag}
 
@@ -197,16 +197,17 @@ def recipe_version(name, root="."):
     raise ValueError("no TERMUX_PKG_VERSION in %s" % path)
 
 
-def published_version(name, root="."):
-    """Installed version as apt sees it, minus the harness revision.
+def published_version_for(name, arch, root="."):
+    """Installed version for one architecture, minus the harness revision.
 
     The harness publishes TERMUX_PKG_VERSION + "-" + TERMUX_PKG_REVISION
     (usually "-0"), while upstream assets and recipes carry just the version.
     Comparing the two directly is wrong: dpkg splits at the last hyphen, so
     "3.47.8-7-0" sorts above "3.47.8-8" and every update would be missed.
+    Returns `None` when the package is absent for this architecture.
     """
     pkg_path = os.path.join(root, "docs", "dists", "stable", "main",
-                            "binary-aarch64", "Packages")
+                            "binary-" + arch, "Packages")
     if os.path.exists(pkg_path):
         with open(pkg_path) as f:
             content = f.read()
@@ -216,7 +217,15 @@ def published_version(name, root="."):
                 ver = re.search(r"^Version:\s*(.+)$", block, re.M)
                 if ver:
                     return re.sub(r"-[^-]*$", "", ver.group(1).strip())
-    return recipe_version(name, root)
+    return None
+
+
+def published_version(name, root="."):
+    return published_version_for(name, "aarch64", root) or recipe_version(name, root)
+
+
+def architectures(name, root="."):
+    return _config_for(name, root).get("architectures", ["aarch64"])
 
 
 def _version_lt(a, b):
@@ -236,10 +245,14 @@ def _numeric_split_lt(a, b):
     return key(a) < key(b)
 
 
-def needs_update(name, latest):
+def needs_update(name, latest, root="."):
     if latest is None:
         return False
-    return _version_lt(published_version(name), latest["new"])
+    for arch in architectures(name, root):
+        current = published_version_for(name, arch, root)
+        if current is None or _version_lt(current, latest["new"]):
+            return True
+    return False
 
 
 def _dpkg_version_cmp(a, b):
@@ -253,15 +266,15 @@ def _dpkg_version_cmp(a, b):
 
 
 def _dedupe_latest(debs_dir):
-    by_name = {}
+    by_key = {}
     for deb in glob.glob(os.path.join(debs_dir, "*.deb")):
         base = os.path.basename(deb)
         m = re.match(r"(.+?)_([^_]+)_([^_]+)\.deb$", base)
         if not m:
             continue
-        name, version = m.group(1), m.group(2)
-        by_name.setdefault(name, []).append((version, deb))
-    for entries in by_name.values():
+        name, version, arch = m.groups()
+        by_key.setdefault((name, arch), []).append((version, deb))
+    for entries in by_key.values():
         entries.sort(key=functools.cmp_to_key(
             lambda a, b: _dpkg_version_cmp(a[0], b[0])))
         for _version, deb in entries[:-1]:
@@ -401,6 +414,15 @@ def bump(name, latest, root=".", download=None):
         finally:
             os.unlink(deb_path)
 
+    elif name == "termux-sync":
+        build = os.path.join(pkg_dir, "build.sh")
+        src_url = ("https://github.com/GeneralKaos666/termux-sync-rust/"
+                   "archive/refs/tags/%s.tar.gz" % latest["tag"])
+        sha = latest.get("sha256") or _sha256_of_url(src_url, download)
+        _set_in_file(build, "TERMUX_PKG_VERSION", latest["new"])
+        _set_in_file(build, "TERMUX_PKG_SRCURL", src_url)
+        _set_in_file(build, "TERMUX_PKG_SHA256", sha)
+
     elif name == "termux-settings":
         build = os.path.join(pkg_dir, "build.sh")
         src_url = ("https://github.com/GeneralKaos666/termux-settings/"
@@ -414,8 +436,8 @@ def bump(name, latest, root=".", download=None):
         raise ValueError("unknown package %r" % name)
 
 
-def _config_for(name):
-    cfg = load_config()
+def _config_for(name, root="."):
+    cfg = load_config(os.path.join(root, "sync.json"))
     for pkg in cfg["packages"]:
         if pkg["name"] == name:
             return pkg
@@ -475,6 +497,9 @@ def main(argv=None):
 
     sd = sub.add_parser("stage-debs")
 
+    ar = sub.add_parser("arches")
+    ar.add_argument("name")
+
     args = parser.parse_args(argv)
 
     if args.cmd == "detect":
@@ -495,6 +520,10 @@ def main(argv=None):
 
     if args.cmd == "stage-debs":
         stage_debs()
+        return 0
+
+    if args.cmd == "arches":
+        print("\n".join(architectures(args.name)))
         return 0
 
     return 1

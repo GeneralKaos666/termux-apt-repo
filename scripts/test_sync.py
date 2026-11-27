@@ -37,6 +37,8 @@ def fake_fetch(url):
         ])
     if "termux-settings/tags" in url:
         return [{"name": "v1.1.1"}]
+    if "termux-sync-rust/tags" in url:
+        return [{"name": "v2.0.0"}]
     if "termux-display-manager-repo/commits/master" in url:
         return {"sha": "abc123def456",
                 "commit": {"committer": {"date": "2026-10-26T18:41:12Z"}}}
@@ -90,6 +92,14 @@ class TestFetchLatest(unittest.TestCase):
             fetch=fake_fetch)
         self.assertEqual(info["new"], "1.1.1")
         self.assertEqual(info["tag"], "v1.1.1")
+
+    def test_termux_sync_new_strips_v(self):
+        info = sync.fetch_latest(
+            {"name": "termux-sync", "detect": "latest_tag",
+             "upstream": "GeneralKaos666/termux-sync-rust"},
+            fetch=fake_fetch)
+        self.assertEqual(info["new"], "2.0.0")
+        self.assertEqual(info["tag"], "v2.0.0")
 
     def test_tdm_master_head(self):
         info = sync.fetch_latest(
@@ -181,23 +191,23 @@ class TestPublishedVersion(unittest.TestCase):
 
 class TestNeedsUpdate(unittest.TestCase):
     def test_unchanged(self):
-        with mock.patch("sync.published_version", return_value="3.47.8-9"):
+        with mock.patch("sync.published_version_for", return_value="3.47.8-9"):
             self.assertFalse(sync.needs_update(
                 "flutter", {"new": "3.47.8-9", "release_base": "x"}))
 
     def test_newer_than_published(self):
-        with mock.patch("sync.published_version", return_value="3.47.8-9"):
+        with mock.patch("sync.published_version_for", return_value="3.47.8-9"):
             self.assertTrue(sync.needs_update(
                 "flutter", {"new": "3.47.8-10", "release_base": "x"}))
 
     def test_older_than_published(self):
-        with mock.patch("sync.published_version", return_value="3.47.8-9"):
+        with mock.patch("sync.published_version_for", return_value="3.47.8-9"):
             self.assertFalse(sync.needs_update(
                 "termux-settings", {"new": "1.1.1", "tag": "v1.1.1"}))
 
     def test_tdm_epoch_newer(self):
         # published "6-morano+...", latest "6-morano+<epoch>" -> newer if epoch greater
-        with mock.patch("sync.published_version",
+        with mock.patch("sync.published_version_for",
                         return_value="6-morano+1784916667"):
             self.assertTrue(sync.needs_update(
                 "termux-dm", {"new": "6-morano+9999999999-0"}))
@@ -315,6 +325,21 @@ class TestBump(unittest.TestCase):
                 build)
             self.assertIn('TERMUX_PKG_SHA256=NEWSHA256', build)
 
+    def test_termux_sync_bump(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            _copy_pkg(tmp, "termux-sync")
+            sync.bump("termux-sync", {
+                "new": "2.0.1",
+                "tag": "v2.0.1",
+                "sha256": "NEWSHA256",
+            }, root=tmp)
+            build = _read(os.path.join(tmp, "packages", "termux-sync", "build.sh"))
+            self.assertIn('TERMUX_PKG_VERSION="2.0.1"', build)
+            self.assertIn(
+                'TERMUX_PKG_SRCURL="https://github.com/GeneralKaos666/termux-sync-rust/archive/refs/tags/v2.0.1.tar.gz"',
+                build)
+            self.assertIn('TERMUX_PKG_SHA256=NEWSHA256', build)
+
     def test_termux_dm_bump(self):
         with tempfile.TemporaryDirectory() as tmp:
             _copy_pkg(tmp, "termux-dm")
@@ -360,6 +385,76 @@ class TestStageDebs(unittest.TestCase):
             self.assertEqual(debs, [
                 "flutter_3.47.9-1_aarch64.deb",
                 "opencode2_2.1.4-1_aarch64.deb",
+            ])
+
+
+class TestMultiArch(unittest.TestCase):
+    def _root(self, tmp, arches=("aarch64", "arm"), version="2.0.0-0"):
+        with open(os.path.join(tmp, "sync.json"), "w") as f:
+            json.dump({"packages": [{
+                "name": "termux-sync",
+                "upstream": "GeneralKaos666/termux-sync-rust",
+                "detect": "latest_tag",
+                "architectures": list(arches),
+            }]}, f)
+        pkg = os.path.join(tmp, "packages", "termux-sync")
+        os.makedirs(pkg)
+        with open(os.path.join(pkg, "build.sh"), "w") as f:
+            f.write('TERMUX_PKG_VERSION="2.0.0"\n')
+        for arch in arches:
+            dist = os.path.join(tmp, "docs", "dists", "stable", "main",
+                                "binary-" + arch)
+            os.makedirs(dist, exist_ok=True)
+            with open(os.path.join(dist, "Packages"), "w") as f:
+                f.write("Package: termux-sync\nVersion: %s\n\n" % version)
+
+    def test_architectures_from_config(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._root(tmp)
+            self.assertEqual(
+                sync.architectures("termux-sync", root=tmp),
+                ["aarch64", "arm"])
+
+    def test_missing_arm_needs_update(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._root(tmp)
+            shutil.rmtree(os.path.join(
+                tmp, "docs", "dists", "stable", "main", "binary-arm"))
+            self.assertTrue(sync.needs_update(
+                "termux-sync", {"new": "2.0.0"}, root=tmp))
+
+    def test_both_current_no_update(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._root(tmp)
+            self.assertFalse(sync.needs_update(
+                "termux-sync", {"new": "2.0.0"}, root=tmp))
+
+    def test_older_arm_needs_update(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self._root(tmp)
+            arm = os.path.join(tmp, "docs", "dists", "stable", "main",
+                               "binary-arm", "Packages")
+            with open(arm, "w") as f:
+                f.write("Package: termux-sync\nVersion: 1.9.0-0\n\n")
+            self.assertTrue(sync.needs_update(
+                "termux-sync", {"new": "2.0.0"}, root=tmp))
+
+    def test_dedupe_keeps_each_architecture(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            debs = os.path.join(tmp, "debs")
+            os.makedirs(debs)
+            for name in (
+                "termux-sync_2.0.0_aarch64.deb",
+                "termux-sync_2.0.0_arm.deb",
+                "termux-sync_1.9.0_aarch64.deb",
+                "termux-sync_1.9.0_arm.deb",
+            ):
+                with open(os.path.join(debs, name), "w") as f:
+                    f.write("x")
+            sync._dedupe_latest(debs)
+            self.assertEqual(sorted(os.listdir(debs)), [
+                "termux-sync_2.0.0_aarch64.deb",
+                "termux-sync_2.0.0_arm.deb",
             ])
 
 
