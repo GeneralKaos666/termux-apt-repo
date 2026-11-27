@@ -18,6 +18,7 @@ on:
       - "packages/**"
       - "sync.json"
       - "scripts/sync.py"
+      - "scripts/test_sync.py"
       - "scripts/build-package.sh"
 
 permissions:
@@ -37,6 +38,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
+
+      - name: Test sync scripts
+        run: python3 scripts/test_sync.py
 
       - name: Detect changed packages
         id: detect
@@ -73,8 +77,10 @@ jobs:
           echo '${{ steps.detect.outputs.changed }}' | jq -r '.[]' | while IFS= read -r pkg; do
             echo "===== bump $pkg ====="
             python3 scripts/sync.py bump --force "$pkg"
-            echo "===== build $pkg ====="
-            scripts/build-package.sh "$pkg"
+            for arch in $(python3 scripts/sync.py arches "$pkg"); do
+              echo "===== build $pkg ($arch) ====="
+              TARGET_ARCH="$arch" scripts/build-package.sh "$pkg"
+            done
           done
 
       - name: Stage debs (full set)
