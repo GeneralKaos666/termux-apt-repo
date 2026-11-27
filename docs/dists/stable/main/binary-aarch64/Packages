@@ -77,3 +77,18 @@ SHA1: 96f67bce33f2b06d10c26d03318a96c715bd8001
 SHA256: 827c25a3465eeaaf3603a20b0db22695afdf5dc2395086aa9c3d4b4b065d9c5b
 SHA512: 95dc3f676d036a60481d0b54475f190a60c82b6681d48de41f89dd8c43b33d3de18b1cb74e7f444e49436cb843f466de765efc26c659c3b69e072f7a43dc0ba1
 
+Package: termux-sync
+Architecture: aarch64
+Installed-Size: 5788
+Maintainer: Ronald Sloan (for termux) <xkiller1177@gmail.com>
+Version: 2.0.0
+Homepage: https://github.com/GeneralKaos666/termux-sync-rust
+Depends: dpkg
+Description: Back up and restore a Termux environment across devices
+Filename: pool/main/t/termux-sync/termux-sync_2.0.0_aarch64.deb
+Size: 1775408
+MD5Sum: f7b830f73e746a3136ccd96e0bd143be
+SHA1: c7ae0b7ed81f4309178acbbc5c96e49e351252b5
+SHA256: 82f00a2e2d51c9abd66fccc453620b90ee07f95be5d39145377e7523cc2555bc
+SHA512: 2026bd51392da75702ed0de1774c0afa668128e83629be9f53afdd33f5d2b4d2db1c187cd43761edf34525be7a1e78e4eb22a62f90fe3f79771e8eee010cdbb3
+

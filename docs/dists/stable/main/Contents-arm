@@ -1,0 +1,5 @@
+data/data/com.termux/files/usr/bin/termux-sync                                   termux-sync
+data/data/com.termux/files/usr/bin/termux-sync-tui                               termux-sync
+data/data/com.termux/files/usr/share/doc/termux-sync/LICENSE                     termux-sync
+data/data/com.termux/files/usr/share/doc/termux-sync/README.md                   termux-sync
+data/data/com.termux/files/usr/share/doc/termux-sync/copyright                   termux-sync

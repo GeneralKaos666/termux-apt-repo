@@ -1,0 +1,15 @@
+Package: termux-sync
+Architecture: arm
+Installed-Size: 4020
+Maintainer: Ronald Sloan (for termux) <xkiller1177@gmail.com>
+Version: 2.0.0
+Homepage: https://github.com/GeneralKaos666/termux-sync-rust
+Depends: dpkg
+Description: Back up and restore a Termux environment across devices
+Filename: pool/main/t/termux-sync/termux-sync_2.0.0_arm.deb
+Size: 1618384
+MD5Sum: 04e9af0ab7e8a3cda60864213a6bb1e3
+SHA1: dee5c59d0c5b7f6643f65eb4e74abf4a5cbb5d32
+SHA256: dec49136da49f24eb255e316519237caa07fd8df12cd5f005038575e54b4a92c
+SHA512: 85fe20fa3b9bc7e5538de3c7efc34246f022d26d1e9845c39507fb678deeb0d30ad4798ef01c625d6381965afd02a4e97bf9663cc17c1ce3c085fa145484e2dc
+
