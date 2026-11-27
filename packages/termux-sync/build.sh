@@ -3,6 +3,7 @@ TERMUX_PKG_DESCRIPTION="Back up and restore a Termux environment across devices"
 TERMUX_PKG_LICENSE="MIT"
 TERMUX_PKG_MAINTAINER="Ronald Sloan (for termux) <xkiller1177@gmail.com>"
 TERMUX_PKG_VERSION="2.0.0"
+TERMUX_RUST_VERSION="1.100.0"
 TERMUX_PKG_SRCURL="https://github.com/GeneralKaos666/termux-sync-rust/archive/refs/tags/v2.0.0.tar.gz"
 TERMUX_PKG_SHA256=8cba98b20b960a555c3ebf28b5e333b660c632be504aa2125f1ec5e0b50e8151
 TERMUX_PKG_DEPENDS="dpkg"
